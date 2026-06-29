@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SkillSearchResult } from "@/app/api/skills/search/route";
 
 interface Skill {
@@ -513,6 +514,7 @@ export function SkillsConfig({
   cwd: string;
   onClose: () => void;
 }) {
+  const isMobile = useIsMobile();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -598,8 +600,10 @@ export function SkillsConfig({
     >
       <div
         style={{
-          width: 860,
-          height: "78vh",
+          width: isMobile ? "calc(100vw - 16px)" : 860,
+          maxWidth: "calc(100vw - 16px)",
+          height: isMobile ? "calc(100dvh - 16px)" : "78vh",
+          maxHeight: "calc(100dvh - 16px)",
           background: "var(--bg)",
           border: "1px solid var(--border)",
           borderRadius: 10,
@@ -657,12 +661,14 @@ export function SkillsConfig({
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row", overflow: "hidden" }}>
           {/* Left: skill list */}
           <div
             style={{
-              width: 210,
-              borderRight: "1px solid var(--border)",
+              width: isMobile ? "100%" : 210,
+              maxHeight: isMobile ? "40vh" : undefined,
+              borderRight: isMobile ? "none" : "1px solid var(--border)",
+              borderBottom: isMobile ? "1px solid var(--border)" : "none",
               display: "flex",
               flexDirection: "column",
               flexShrink: 0,
