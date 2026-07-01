@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sendAgentCommand } from "@/lib/agent-client";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { PluginPackageInfo, PluginsResponse } from "@/app/api/plugins/route";
@@ -32,6 +32,24 @@ function versionSummary(pkg: PluginPackageInfo): string {
   if (pkg.version) parts.push(`installed ${pkg.version}`);
   if (pkg.configuredVersion) parts.push(`configured ${pkg.configuredVersion}`);
   return parts.length ? parts.join(" · ") : "Unknown";
+}
+
+function installLocation(scope: PluginScope, cwd: string): string {
+  return scope === "project"
+    ? `${shortenPath(cwd)}/.pi/agent/{npm,git}`
+    : "~/.pi/agent/{npm,git}";
+}
+
+function findInstalledPackage(
+  packages: PluginPackageInfo[],
+  source: string,
+  scope: PluginScope,
+): PluginPackageInfo | undefined {
+  const trimmed = source.trim();
+  const withoutNpmPrefix = trimmed.startsWith("npm:") ? trimmed.slice(4) : trimmed;
+  return packages.find((pkg) => pkg.scope === scope && pkg.source === trimmed)
+    ?? packages.find((pkg) => pkg.scope === scope && pkg.source === `npm:${withoutNpmPrefix}`)
+    ?? packages.find((pkg) => pkg.scope === scope && pkg.source.endsWith(trimmed));
 }
 
 function statusColor(status: PluginPackageInfo["status"]): string {
@@ -252,6 +270,7 @@ function SegmentedScope({
 }
 
 function AddPluginPanel({
+  cwd,
   source,
   scope,
   busy,
@@ -260,6 +279,7 @@ function AddPluginPanel({
   onScopeChange,
   onInstall,
 }: {
+  cwd: string;
   source: string;
   scope: PluginScope;
   busy: boolean;
@@ -268,27 +288,44 @@ function AddPluginPanel({
   onScopeChange: (scope: PluginScope) => void;
   onInstall: () => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const examples = ["npm:@scope/pi-plugin", "git:https://github.com/user/repo", "/absolute/path/to/plugin"];
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 620 }}>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>
-          Add Package
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 660, minHeight: "100%" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>
+          Add Plugin
         </div>
+        <div style={{ fontSize: 12, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+          {installLocation(scope, cwd)}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        <label htmlFor="plugin-source" style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
+          Source
+        </label>
         <input
+          id="plugin-source"
+          ref={inputRef}
           value={source}
           onChange={(e) => onSourceChange(e.target.value)}
-          placeholder="npm:@scope/package or git:github.com/user/repo"
-          autoFocus
+          placeholder="npm:@scope/package"
           style={{
             width: "100%",
-            height: 34,
-            padding: "0 10px",
+            height: 36,
+            padding: "0 11px",
             border: "1px solid var(--border)",
             borderRadius: 6,
             background: "var(--bg-panel)",
             color: "var(--text)",
             fontFamily: "var(--font-mono)",
-            fontSize: 12,
+            fontSize: 13,
             outline: "none",
           }}
           onKeyDown={(e) => {
@@ -300,6 +337,7 @@ function AddPluginPanel({
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <SegmentedScope value={scope} onChange={onScopeChange} />
         <button
+          type="button"
           onClick={onInstall}
           disabled={busy || !source.trim()}
           style={{
@@ -313,10 +351,42 @@ function AddPluginPanel({
         </button>
       </div>
 
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-dim)", lineHeight: 1.8 }}>
-        <div>npm:@foo/pi-tools</div>
-        <div>git:github.com/user/repo@v1</div>
-        <div>/absolute/path/to/package</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
+          Examples
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {examples.map((example) => (
+            <button
+              key={example}
+              type="button"
+              onClick={() => onSourceChange(example)}
+              style={{
+                width: "100%",
+                minHeight: 30,
+                textAlign: "left",
+                padding: "6px 9px",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                background: "var(--bg-panel)",
+                color: "var(--text-dim)",
+                cursor: "pointer",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--bg-hover)";
+                e.currentTarget.style.color = "var(--text-muted)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--bg-panel)";
+                e.currentTarget.style.color = "var(--text-dim)";
+              }}
+            >
+              {example}
+            </button>
+          ))}
+        </div>
       </div>
 
       {actionError && (
@@ -524,6 +594,7 @@ export function PluginsConfig({
       const next = (await res.json()) as PluginsResponse & { error?: string };
       if (!res.ok || next.error) throw new Error(next.error ?? `HTTP ${res.status}`);
       setData(next);
+      setAddMode((current) => next.packages.length === 0 || current);
       setSelected((current) => {
         if (current && next.packages.some((pkg) => packageKey(pkg) === current)) return current;
         return next.packages[0] ? packageKey(next.packages[0]) : null;
@@ -555,6 +626,7 @@ export function PluginsConfig({
       setData(next);
       if (action === "remove") {
         setSelected(next.packages[0] ? packageKey(next.packages[0]) : null);
+        if (next.packages.length === 0) setAddMode(true);
         setActionMessage("Package removed.");
       } else {
         const messages: Record<Exclude<PluginAction, "remove">, string> = {
@@ -588,7 +660,8 @@ export function PluginsConfig({
       const next = (await res.json()) as PluginsResponse & { error?: string };
       if (!res.ok || next.error) throw new Error(next.error ?? `HTTP ${res.status}`);
       setData(next);
-      setSelected(key);
+      const installed = findInstalledPackage(next.packages, source, installScope);
+      setSelected(installed ? packageKey(installed) : key);
       setAddMode(false);
       setInstallSource("");
       setActionMessage("Package installed.");
@@ -715,7 +788,7 @@ export function PluginsConfig({
                 </div>
               ) : packages.length === 0 ? (
                 <div style={{ padding: "10px 8px", fontSize: 11, color: "var(--text-dim)" }}>
-                  No packages configured
+                  No plugins configured
                 </div>
               ) : (
                 groupedPackages.map((group) => (
@@ -817,7 +890,8 @@ export function PluginsConfig({
               )}
             </div>
             <div style={{ padding: "8px 6px", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
-              <div
+              <button
+                type="button"
                 onClick={() => {
                   setAddMode(true);
                   setActionError(null);
@@ -829,6 +903,8 @@ export function PluginsConfig({
                   gap: 6,
                   padding: "7px 8px",
                   borderRadius: 5,
+                  border: "none",
+                  width: "100%",
                   cursor: "pointer",
                   background: addMode ? "var(--bg-selected)" : "none",
                   color: addMode ? "var(--accent)" : "var(--text-dim)",
@@ -854,14 +930,15 @@ export function PluginsConfig({
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                Add package
-              </div>
+                Add plugin
+              </button>
             </div>
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
             {addMode ? (
               <AddPluginPanel
+                cwd={cwd}
                 source={installSource}
                 scope={installScope}
                 busy={addBusy}
