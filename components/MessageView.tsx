@@ -426,7 +426,7 @@ function AssistantMessageView({
             <>
 
               {est > 0 && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text)" }} title="预估 token 数（流式接收中）">
+                <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--text)" }} title="Estimated token count while streaming">
                   <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 11, fontWeight: 400 }}>
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="5" y1="1.5" x2="5" y2="8.5" /><polyline points="2 6 5 8.5 8 6" />

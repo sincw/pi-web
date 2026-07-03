@@ -69,13 +69,13 @@ function compareModelOptions(a: ModelOption, b: ModelOption): number {
 
 const THINKING_LEVELS = ["auto", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
 const THINKING_LEVEL_DESC: Record<typeof THINKING_LEVELS[number], string> = {
-  auto: "沿用 pi 默认设置",
-  off: "关闭推理",
-  minimal: "最少推理",
-  low: "低强度推理",
-  medium: "中等推理",
-  high: "高强度推理",
-  xhigh: "最高强度推理",
+  auto: "Use pi default",
+  off: "Reasoning off",
+  minimal: "Minimal reasoning",
+  low: "Low reasoning",
+  medium: "Medium reasoning",
+  high: "High reasoning",
+  xhigh: "Max reasoning",
 };
 
 function formatTokenCount(tokens: number): string {
@@ -861,7 +861,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             onPaste={handlePaste}
             placeholder={
               isStreaming && (onSteer || onFollowUp)
-                ? "Steer 立即注入 / Follow-up 排队…"
+                ? "Steer now / queue follow-up..."
                 : isStreaming ? "Agent is running…"
                 : "Message… Type / for commands"
             }
@@ -888,7 +888,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 <button
                   onClick={() => sendQueued("steer")}
                   disabled={!value.trim() && !attachedImages.length}
-                  title="打断 Agent 当前运行，立即注入消息"
+                  title="Interrupt the current run and inject this message now"
                   style={{
                     display: "flex", alignItems: "center", gap: 5,
                     padding: "7px 12px",
@@ -911,7 +911,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 <button
                   onClick={() => sendQueued("followup")}
                   disabled={!value.trim() && !attachedImages.length}
-                  title="在 Agent 完成后排队发送"
+                  title="Queue this message after the agent finishes"
                   style={{
                     display: "flex", alignItems: "center", gap: 5,
                     padding: "7px 12px",
@@ -1131,8 +1131,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             {isMobile && (
               <button
                 type="button"
-                title={controlsMenuOpen ? undefined : "更多控制"}
-                aria-label="更多控制"
+                title={controlsMenuOpen ? undefined : "More controls"}
+                aria-label="More controls"
                 aria-expanded={controlsMenuOpen}
                 aria-hidden={controlsMenuOpen || undefined}
                 tabIndex={controlsMenuOpen ? -1 : undefined}
@@ -1198,8 +1198,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 <button
                   onClick={() => !isStreaming && setThinkingDropdownOpen((v) => !v)}
                   disabled={isStreaming}
-                  title={`切换推理强度：${thinkingDisplayLabel}`}
-                  aria-label="切换推理强度"
+                  title={`Change reasoning level: ${thinkingDisplayLabel}`}
+                  aria-label="Change reasoning level"
                   style={{
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                     padding: isMobile ? "0 6px" : "8px 12px",
@@ -1285,8 +1285,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 <button
                   onClick={() => !isStreaming && setToolDropdownOpen((v) => !v)}
                   disabled={isStreaming}
-                  title={`切换工具预设：${toolPresetLabel}`}
-                  aria-label="切换工具预设"
+                  title={`Change tool preset: ${toolPresetLabel}`}
+                  aria-label="Change tool preset"
                   style={{
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                     padding: isMobile ? "0 6px" : "8px 12px",
@@ -1326,7 +1326,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     {TOOL_PRESETS.map((lvl) => {
                       const preset = TOOL_PRESET_MAP[lvl];
                       const isActive = (toolPreset ?? "default") === preset;
-                      const desc = lvl === "off" ? "无工具，纯聊天" : lvl === "default" ? "4 项内置工具" : "全部内置工具";
+                      const desc = lvl === "off" ? "No tools, read-only" : lvl === "default" ? "4 built-in tools" : "All built-in tools";
                       return (
                         <button
                           key={lvl}
@@ -1395,8 +1395,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     e.currentTarget.style.background = isCompacting ? "rgba(239,68,68,0.08)" : "none";
                     e.currentTarget.style.color = isCompacting ? "#ef4444" : "var(--text-muted)";
                   }}
-                  title={isCompacting ? "停止压缩" : "压缩上下文"}
-                  aria-label={isCompacting ? "停止压缩" : "压缩上下文"}
+                  title={isCompacting ? "Stop compaction" : "Compact context"}
+                  aria-label={isCompacting ? "Stop compaction" : "Compact context"}
                 >
                   {isCompacting ? (
                     <><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" /></svg>{(!isMobile || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>Compacting…</span>}</>
@@ -1413,7 +1413,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             {isStreaming && (
               <button
                 onClick={onAbort}
-                title="停止 Agent"
+                title="Stop agent"
                 style={{
                   display: "flex", alignItems: "center", gap: 6,
                   padding: "8px 14px",
@@ -1440,8 +1440,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             {onSoundToggle !== undefined && (
               <button
                 onClick={onSoundToggle}
-                title={soundEnabled ? "关闭完成提示音" : "开启完成提示音"}
-                aria-label={soundEnabled ? "关闭完成提示音" : "开启完成提示音"}
+                title={soundEnabled ? "Disable completion sound" : "Enable completion sound"}
+                aria-label={soundEnabled ? "Disable completion sound" : "Enable completion sound"}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                   width: isMobile ? 32 : 32,
@@ -1484,8 +1484,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             {isMobile && controlsMenuOpen && (
               <button
                 type="button"
-                title="收起控制"
-                aria-label="收起控制"
+                title="Collapse controls"
+                aria-label="Collapse controls"
                 aria-expanded={true}
                 onClick={() => {
                   setToolDropdownOpen(false);
