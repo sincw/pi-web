@@ -1,4 +1,4 @@
-import { createAgentSessionFromServices, createAgentSessionServices, getAgentDir, SessionManager } from "@earendil-works/pi-coding-agent";
+import { createAgentSessionFromServices, createAgentSessionServices, getAgentDir, SessionManager, Theme } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "crypto";
 import { cacheSessionPath } from "./session-reader";
 import type { SlashCommandInfo } from "@earendil-works/pi-coding-agent";
@@ -55,6 +55,33 @@ type ExtensionBindingOptions = {
 };
 
 const CODING_TOOL_NAMES = ["read", "bash", "edit", "write", "grep", "find", "ls"];
+
+// Extensions require a complete Theme, while the web UI applies its own styling.
+class PlainTextTheme extends Theme {
+  constructor() {
+    super(
+      {} as ConstructorParameters<typeof Theme>[0],
+      {} as ConstructorParameters<typeof Theme>[1],
+      "truecolor",
+    );
+  }
+
+  override fg(...[, text]: Parameters<Theme["fg"]>): string { return text; }
+  override bg(...[, text]: Parameters<Theme["bg"]>): string { return text; }
+  override bold(text: string): string { return text; }
+  override italic(text: string): string { return text; }
+  override underline(text: string): string { return text; }
+  override inverse(text: string): string { return text; }
+  override strikethrough(text: string): string { return text; }
+  override getFgAnsi(): string { return ""; }
+  override getBgAnsi(): string { return ""; }
+  override getThinkingBorderColor(): (text: string) => string {
+    return (text) => text;
+  }
+  override getBashModeBorderColor(): (text: string) => string { return (text) => text; }
+}
+
+const PLAIN_TEXT_THEME = new PlainTextTheme();
 
 function withExtensionTools(session: AgentSessionLike, toolNames: string[]): string[] {
   if (toolNames.length === 0) return [];
@@ -779,7 +806,7 @@ export class AgentSessionWrapper {
       addAutocompleteProvider: () => {},
       setEditorComponent: () => {},
       getEditorComponent: () => undefined,
-      get theme() { return undefined; },
+      get theme() { return PLAIN_TEXT_THEME; },
       getAllThemes: () => [],
       getTheme: () => undefined,
       setTheme: () => ({ success: false, error: "Theme switching is not supported in pi-web extension UI yet" }),
