@@ -75,7 +75,11 @@ export function getSessionEntries(filePath: string): SessionEntry[] {
   return entries as unknown as SessionEntry[];
 }
 
-export function buildSessionContext(entries: SessionEntry[], leafId?: string | null): SessionContext {
+export function buildSessionContext(
+  entries: SessionEntry[],
+  leafId?: string | null,
+  options: { deferThinking?: boolean } = {},
+): SessionContext {
   const byId = new Map<string, SessionEntry>();
   for (const e of entries) byId.set(e.id, e);
 
@@ -111,7 +115,7 @@ export function buildSessionContext(entries: SessionEntry[], leafId?: string | n
   const messages: AgentMessage[] = [];
   const entryIds: string[] = [];
   for (const e of path) {
-    const m = entryToUiMessage(e);
+    const m = entryToUiMessage(e, options.deferThinking ?? false);
     if (m) {
       messages.push(m);
       entryIds.push(e.id);
@@ -133,10 +137,20 @@ function parseEntryTimestamp(timestamp: string): number | undefined {
 
 // Convert a session entry on the active branch into a UI message.
 // Returns null for entries that do not map to chat history (metadata, non-message types).
-function entryToUiMessage(entry: SessionEntry): AgentMessage | null {
+function entryToUiMessage(entry: SessionEntry, deferThinking: boolean): AgentMessage | null {
   switch (entry.type) {
-    case "message":
-      return normalizeToolCalls(entry.message);
+    case "message": {
+      const message = normalizeToolCalls(entry.message);
+      if (!deferThinking || message.role !== "assistant") return message;
+      return {
+        ...message,
+        content: message.content.map((block) => (
+          block.type === "thinking"
+            ? { ...block, thinking: "", deferred: true }
+            : block
+        )),
+      };
+    }
     case "compaction":
       return {
         role: "custom",

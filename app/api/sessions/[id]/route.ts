@@ -111,7 +111,7 @@ function projectTreeForResponse<T extends { entry: { id: string }; children: T[]
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -125,7 +125,8 @@ export async function GET(
     const entries = sm.getEntries() as never;
     const leafId = sm.getLeafId();
     const tree = projectTreeForResponse(sm.getTree());
-    const context = buildSessionContext(entries, leafId);
+    const deferThinking = new URL(req.url).searchParams.has("deferThinking");
+    const context = buildSessionContext(entries, leafId, { deferThinking });
 
     const header = sm.getHeader();
     let modified = header?.timestamp ?? new Date().toISOString();
