@@ -22,6 +22,12 @@ interface Props {
   cwd?: string;
   sourceSessionId?: string | null;
   onOpenFile?: (filePath: string) => void;
+  diffOldContent?: string | null;
+  // When set, the tab is a frozen per-file diff: left = diffOldContent,
+  // right = diffNewContent (no /api/files fetch, no live SSE watch). Both
+  // sides come from /api/git-diff, whose right side for the Unstaged section
+  // is read server-side (bypassing the 256KB preview cap, e.g. package-lock).
+  diffNewContent?: string | null;
 }
 
 interface FileData {
@@ -680,7 +686,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId }: Props) {
   );
 }
 
-export function FileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props) {
+export function FileViewer({ filePath, cwd, sourceSessionId, onOpenFile, diffOldContent, diffNewContent }: Props) {
   if (isImagePath(filePath)) {
     return <ImageViewer filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId} />;
   }
@@ -690,17 +696,17 @@ export function FileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props
   if (isDocumentPreviewPath(filePath)) {
     return <DocumentViewer filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId} />;
   }
-  return <TextFileViewer filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId} onOpenFile={onOpenFile} />;
+  return <TextFileViewer filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId} onOpenFile={onOpenFile} diffOldContent={diffOldContent} diffNewContent={diffNewContent} />;
 }
 
-function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props) {
+function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile, diffOldContent, diffNewContent }: Props) {
   const { isDark } = useTheme();
   const [data, setData] = useState<FileData | null>(null);
   const [prevContent, setPrevContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
-  const [viewMode, setViewMode] = useState<"source" | "diff">("source");
+  const [viewMode, setViewMode] = useState<"source" | "diff">(diffOldContent != null ? "diff" : "source");
   const [wrapLines, setWrapLines] = useState(false);
   const [watching, setWatching] = useState(false);
   const [changeCount, setChangeCount] = useState(0);
@@ -736,9 +742,9 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props) {
     setLoading(true);
     setError(null);
     setData(null);
-    setPrevContent(null);
+    setPrevContent(diffOldContent ?? null);
     setPreviewMode(false);
-    setViewMode("source");
+    setViewMode(diffOldContent != null ? "diff" : "source");
     setWrapLines(false);
     setChangeCount(0);
     setWatching(false);
@@ -746,6 +752,17 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props) {
     if (esRef.current) {
       esRef.current.close();
       esRef.current = null;
+    }
+
+    // Frozen per-file diff: both sides come from /api/git-diff (no
+    // /api/files fetch, no live SSE watch). Covers BOTH sections — unstaged
+    // too, since the worktree right side is read server-side by the route,
+    // bypassing the 256KB preview cap (e.g. package-lock.json).
+    if (diffOldContent != null && diffNewContent != null) {
+      setData({ content: diffNewContent, language: "", size: diffNewContent.length });
+      setViewMode("diff");
+      setLoading(false);
+      return;
     }
 
     fetchContent(filePath).then((d) => {
@@ -776,7 +793,7 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props) {
       es.close();
       esRef.current = null;
     };
-  }, [filePath, fetchContent, sourceSessionId]);
+  }, [filePath, fetchContent, sourceSessionId, diffOldContent, diffNewContent]);
 
   if (loading) {
     return (

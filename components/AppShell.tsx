@@ -10,6 +10,7 @@ import { ModelsConfig } from "./ModelsConfig";
 import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import { BranchNavigator } from "./BranchNavigator";
+import { FilesChangedSidebar } from "./FilesChangedSidebar";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { copyText } from "@/lib/clipboard";
@@ -283,6 +284,35 @@ export function AppShell() {
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
 
+  // Open (or refocus) a per-file diff tab. Staged and unstaged views of the
+  // same file are separate tabs (tabId carries the section) so their pinned
+  // baselines don't overwrite each other; re-opening an existing diff tab
+  // renews its baseline at click time.
+  const handleOpenDiffFile = useCallback(({
+    filePath, fileName, oldContent, newContent, section,
+  }: {
+    filePath: string;
+    fileName: string;
+    oldContent: string;
+    newContent: string | null;
+    section: "staged" | "unstaged";
+  }) => {
+    const tabId = `file:${filePath}#${section}`;
+    setFileTabs((prev) => {
+      const existing = prev.find((t) => t.id === tabId);
+      if (!existing) {
+        return [...prev, { id: tabId, label: fileName, filePath, diffOldContent: oldContent,
+          diffNewContent: newContent, diffSection: section }];
+      }
+      return prev.map((t) => t.id === tabId
+        ? { ...t, diffOldContent: oldContent, diffNewContent: newContent, diffSection: section }
+        : t);
+    });
+    setActiveFileTabId(tabId);
+    setRightPanelOpen(true);
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
   const handleOpenLinkedFile = useCallback((filePath: string) => {
     handleOpenFile(filePath, getFileName(filePath), selectedSession?.id ?? null);
   }, [handleOpenFile, selectedSession?.id]);
@@ -332,6 +362,11 @@ export function AppShell() {
         onOpenFile={handleOpenFile}
         explorerRefreshKey={explorerRefreshKey}
         onAtMention={handleAtMention}
+      />
+      <FilesChangedSidebar
+        cwd={selectedSession?.cwd ?? newSessionCwd ?? activeCwd ?? null}
+        onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, selectedSession?.id ?? null)}
+        onOpenDiffFile={handleOpenDiffFile}
       />
       <div style={{ padding: "8px", flexShrink: 0, display: "flex", justifyContent: "space-between", gap: 4 }}>
         {([
@@ -1026,6 +1061,8 @@ export function AppShell() {
               filePath={activeFileTab.filePath}
               cwd={activeCwd ?? undefined}
               sourceSessionId={activeFileTab.sourceSessionId}
+              diffOldContent={activeFileTab.diffOldContent ?? null}
+              diffNewContent={activeFileTab.diffNewContent ?? null}
               onOpenFile={(filePath) => handleOpenFile(
                 filePath,
                 getFileName(filePath),
