@@ -81,8 +81,8 @@ lib/
   worktree.ts         project/worktree resolution and git worktree operations
 
 components/
-  AppShell.tsx        layout + URL state + tab management
-  SessionSidebar.tsx  session tree + FileExplorer
+  AppShell.tsx        layout + URL state + right-panel delegate
+  SessionSidebar.tsx  workspace picker + session tree
   ChatWindow.tsx      chat composition + completion sound wrapper
   ChatInput.tsx       input bar + model/thinking/tools/compact controls
   MessageView.tsx     renders one message (user/assistant/toolCall/toolResult)
@@ -92,10 +92,17 @@ components/
   ModelsConfig.tsx    modal for editing models.json (opened from sidebar bottom)
   PluginsConfig.tsx   modal for installed package plugins
   SkillsConfig.tsx    modal for loaded/search/installable skills
-  FileExplorer.tsx    file tree inside sidebar
+  FileExplorer.tsx    reusable project file tree
   FileIcons.tsx       file icon helpers
-  FileViewer.tsx      file content in a tab
-  TabBar.tsx          tab bar (Chat + open file tabs)
+  FileViewer.tsx      file content preview
+  TabBar.tsx          generic closable tab row
+  right-panel/
+    RightPanel.tsx    owns right-panel tabs, workspace reset, and panel controls
+    tool-registry.ts  registered right-panel tools; drives launcher/menu/tab icons
+    FileTreeTool.tsx  file-tree tool definition + content
+    ReviewTool.tsx    review tool definition + content
+    FileTab.tsx       file-preview tab adapter
+    types.ts          right-panel tab, tool, and imperative-handle contracts
 
 hooks/
   useAgentSession.ts  messages + streaming + SSE + fork/navigate/reconciliation logic
@@ -152,6 +159,11 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - New worktrees are created under `<repoRoot>-worktrees/<sanitized-branch>`. Existing branches are reused; otherwise `git worktree add -b` creates the branch.
 - Removing a dirty worktree returns `409` with `{ dirty: true }` so the UI can ask before retrying with `force`.
 - Sessions whose cwd points at a removed worktree are inferred back into the main project instead of becoming a phantom project row.
+
+### Right-panel tools
+- `RightPanel` owns its tool and file tabs. When its `workspaceCwd` changes, it clears every right-panel tab and returns to the launcher while leaving the panel open.
+- Add a same-level tool by creating one `right-panel/*Tool.tsx` feature definition (`id`, label, description, icon, component) and adding it to `right-panel/tool-registry.ts`. The registry drives the launcher, creation menu, and tool-tab icon; do not add tool-specific branches or unions to `AppShell` or `TabBar`.
+- File previews are core tabs, not registered tools. `AppShell` opens chat-linked files through `RightPanelHandle`; tool components receive file/diff callbacks through `RightPanelToolProps`.
 
 ### File access allow-list
 - `/api/files` is intentionally not a general filesystem browser. Allowed roots come from session cwds, their resolved project roots, `~/pi-cwd-*`, and roots explicitly added with `allowFileRoot()`.
