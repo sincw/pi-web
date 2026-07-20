@@ -606,6 +606,209 @@ span.linenumber {
   border-radius: 12px;
 }
 
+.right-panel-toolbar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 44px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.right-panel-toolbar-tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.right-panel-toolbar-tabs > div:first-child {
+  align-self: center;
+}
+
+.right-panel-toolbar-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 4px 7px;
+}
+
+.right-panel-action,
+.right-panel-open-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.right-panel-action:hover,
+.right-panel-open-button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.right-panel-create-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 7px;
+  z-index: 320;
+  width: 190px;
+  padding: 5px;
+  border: 1px solid var(--overlay-border);
+  border-radius: 8px;
+  background: var(--overlay-bg);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(24px) saturate(1.15);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+}
+
+.right-panel-create-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  gap: 9px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+}
+
+.right-panel-create-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.right-panel-create-menu button:disabled,
+.right-panel-launcher-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.right-panel-content {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.right-panel-launcher {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 32px;
+}
+
+.right-panel-launcher-heading {
+  width: min(100%, 470px);
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.right-panel-launcher-heading h2 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.right-panel-launcher-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.right-panel-launcher-list {
+  display: grid;
+  width: min(100%, 470px);
+  gap: 12px;
+}
+
+.right-panel-launcher-item {
+  display: flex;
+  align-items: center;
+  min-height: 88px;
+  gap: 16px;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s, transform 0.12s;
+}
+
+.right-panel-launcher-item:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  background: var(--surface-raised);
+  box-shadow: 0 5px 16px rgba(22, 27, 35, 0.07);
+  transform: translateY(-1px);
+}
+
+.right-panel-launcher-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-subtle) 80%, var(--bg-panel));
+  color: var(--text-muted);
+}
+
+.right-panel-launcher-item > span:last-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.right-panel-launcher-item strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.right-panel-launcher-item small {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.right-panel-tool-content {
+  height: 100%;
+  overflow: auto;
+}
+
+.right-panel-open-button {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 300;
+  width: 36px;
+  height: 36px;
+  border-radius: 0 0 0 7px;
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
 .workspace-toolbar,
 .glass-file-panel > :first-child {
   background: var(--bg-panel) !important;

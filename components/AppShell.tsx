@@ -11,6 +11,7 @@ import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import { BranchNavigator } from "./BranchNavigator";
 import { FilesChangedSidebar } from "./FilesChangedSidebar";
+import { FileExplorer } from "./FileExplorer";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { copyText } from "@/lib/clipboard";
@@ -21,6 +22,40 @@ import type { ChatInputHandle } from "./ChatInput";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 
 type SessionCopyField = "file" | "id";
+type RightPanelToolKind = "explorer" | "review";
+
+interface RightPanelToolTab {
+  id: `tool:${RightPanelToolKind}`;
+  kind: RightPanelToolKind;
+  label: string;
+  cwd: string;
+}
+
+function FileTreeIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H10l2 2.5h6.5A1.5 1.5 0 0 1 20 7v12.5A1.5 1.5 0 0 1 18.5 21h-13A1.5 1.5 0 0 1 4 19.5z" />
+      <path d="M9 10v5m0-5h6m-6 5h6m-3-5v8" />
+    </svg>
+  );
+}
+
+function ReviewIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="6" cy="5" r="2" /><circle cx="18" cy="7" r="2" /><circle cx="6" cy="19" r="2" />
+      <path d="M8 5h3a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8m8-10h-2" />
+    </svg>
+  );
+}
+
+function PanelIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
+    </svg>
+  );
+}
 
 export function AppShell() {
   const router = useRouter();
@@ -130,11 +165,6 @@ export function AppShell() {
     return () => ro.disconnect();
   }, [activeTopPanel]);
 
-  // Right panel — file tabs only
-  const [fileTabs, setFileTabs] = useState<Tab[]>([]);
-  const [activeFileTabId, setActiveFileTabId] = useState<string | null>(null);
-  const [rightPanelOpen, setRightPanelOpen] = useState(false);
-
   // Same @mention format as the chat input's @ autocomplete, so the agent's
   // read tool resolves it the same way (it strips the @ prefix).
   const handleAtMention = useCallback((relativePath: string, isDir: boolean) => {
@@ -147,6 +177,37 @@ export function AppShell() {
   const [initialSessionRestored, setInitialSessionRestored] = useState<boolean>(() => !searchParams.get("session"));
   // Suppresses sessionKey bump in handleCwdChange during the initial URL restore
   const suppressCwdBumpRef = useRef(false);
+  const rightPanelCwd = activeCwd ?? selectedSession?.cwd ?? newSessionCwd ?? null;
+
+  // Right panel tabs are scoped to the active workspace. File and tool tabs
+  // intentionally share one active id so they can be switched in one row.
+  const [fileTabs, setFileTabs] = useState<Tab[]>([]);
+  const [rightPanelToolTabs, setRightPanelToolTabs] = useState<RightPanelToolTab[]>([]);
+  const [rightPanelActiveTabId, setRightPanelActiveTabId] = useState<string | null>(null);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelMenuOpen, setRightPanelMenuOpen] = useState(false);
+  const rightPanelMenuRef = useRef<HTMLDivElement>(null);
+  const rightPanelWorkspaceRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!rightPanelMenuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rightPanelMenuRef.current?.contains(event.target as Node)) setRightPanelMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [rightPanelMenuOpen]);
+
+  useEffect(() => {
+    const previousWorkspace = rightPanelWorkspaceRef.current;
+    if (previousWorkspace !== undefined && previousWorkspace !== rightPanelCwd) {
+      setFileTabs([]);
+      setRightPanelToolTabs([]);
+      setRightPanelActiveTabId(null);
+      setRightPanelMenuOpen(false);
+    }
+    rightPanelWorkspaceRef.current = rightPanelCwd;
+  }, [rightPanelCwd]);
 
   const handleCwdChange = useCallback((cwd: string | null, projectRoot?: string | null) => {
     setActiveCwd(cwd);
@@ -288,19 +349,41 @@ export function AppShell() {
     }
   }, [selectedSession, router]);
 
+  const openRightPanelTool = useCallback((kind: RightPanelToolKind) => {
+    if (!rightPanelCwd) return;
+    const id = `tool:${kind}` as const;
+    setRightPanelToolTabs((prev) => prev.some((tab) => tab.id === id)
+      ? prev
+      : [...prev, { id, kind, label: kind === "explorer" ? "文件树" : "审查", cwd: rightPanelCwd }]);
+    setRightPanelActiveTabId(id);
+    setRightPanelOpen(true);
+    setRightPanelMenuOpen(false);
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile, rightPanelCwd]);
+
+  const handleRightPanelToggle = useCallback(() => {
+    if (rightPanelOpen) {
+      setRightPanelOpen(false);
+      setRightPanelMenuOpen(false);
+      return;
+    }
+    setRightPanelOpen(true);
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile, rightPanelOpen]);
+
   const handleOpenFile = useCallback((filePath: string, fileName: string, sourceSessionId?: string | null) => {
     const tabId = `file:${filePath}`;
     setFileTabs((prev) => {
       const existing = prev.find((t) => t.id === tabId);
-      if (!existing) return [...prev, { id: tabId, label: fileName, filePath, sourceSessionId }];
+      if (!existing) return [...prev, { id: tabId, label: fileName, filePath, sourceSessionId, workspaceCwd: rightPanelCwd }];
       if (!sourceSessionId || existing.sourceSessionId === sourceSessionId) return prev;
-      return prev.map((t) => t.id === tabId ? { ...t, sourceSessionId } : t);
+      return prev.map((t) => t.id === tabId ? { ...t, sourceSessionId, workspaceCwd: rightPanelCwd } : t);
     });
-    setActiveFileTabId(tabId);
+    setRightPanelActiveTabId(tabId);
     setRightPanelOpen(true);
     // On mobile the file panel is full-screen; close the drawer so it shows.
     if (isMobile) setSidebarOpen(false);
-  }, [isMobile]);
+  }, [isMobile, rightPanelCwd]);
 
   // Open (or refocus) a per-file diff tab. Staged and unstaged views of the
   // same file are separate tabs (tabId carries the section) so their pinned
@@ -320,33 +403,47 @@ export function AppShell() {
       const existing = prev.find((t) => t.id === tabId);
       if (!existing) {
         return [...prev, { id: tabId, label: fileName, filePath, diffOldContent: oldContent,
-          diffNewContent: newContent, diffSection: section }];
+          diffNewContent: newContent, diffSection: section, workspaceCwd: rightPanelCwd }];
       }
       return prev.map((t) => t.id === tabId
-        ? { ...t, diffOldContent: oldContent, diffNewContent: newContent, diffSection: section }
+        ? { ...t, diffOldContent: oldContent, diffNewContent: newContent, diffSection: section, workspaceCwd: rightPanelCwd }
         : t);
     });
-    setActiveFileTabId(tabId);
+    setRightPanelActiveTabId(tabId);
     setRightPanelOpen(true);
     if (isMobile) setSidebarOpen(false);
-  }, [isMobile]);
+  }, [isMobile, rightPanelCwd]);
 
   const handleOpenLinkedFile = useCallback((filePath: string) => {
     handleOpenFile(filePath, getFileName(filePath), selectedSession?.id ?? null);
   }, [handleOpenFile, selectedSession?.id]);
 
-  const handleCloseFileTab = useCallback((tabId: string) => {
+  const handleSelectRightPanelTab = useCallback((tabId: string) => {
+    setRightPanelActiveTabId(tabId);
+  }, []);
+
+  const handleCloseRightPanelTab = useCallback((tabId: string) => {
+    if (tabId.startsWith("tool:")) {
+      setRightPanelToolTabs((prev) => {
+        const next = prev.filter((tab) => tab.id !== tabId);
+        if (rightPanelActiveTabId === tabId) {
+          const remaining = [...next, ...fileTabs];
+          setRightPanelActiveTabId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
+        }
+        return next;
+      });
+      return;
+    }
+
     setFileTabs((prev) => {
-      const next = prev.filter((t) => t.id !== tabId);
-      if (next.length === 0) setRightPanelOpen(false);
+      const next = prev.filter((tab) => tab.id !== tabId);
+      if (rightPanelActiveTabId === tabId) {
+        const remaining = [...rightPanelToolTabs, ...next];
+        setRightPanelActiveTabId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
+      }
       return next;
     });
-    setActiveFileTabId((cur) => {
-      if (cur !== tabId) return cur;
-      const remaining = fileTabs.filter((t) => t.id !== tabId);
-      return remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-    });
-  }, [fileTabs]);
+  }, [fileTabs, rightPanelActiveTabId, rightPanelToolTabs]);
 
   const handleViewFullHistory = useCallback(() => {
     if (!selectedSession) return;
@@ -363,7 +460,18 @@ export function AppShell() {
   // While restoring initial session from URL, don't show the placeholder
   const showPlaceholder = initialSessionRestored && !showChat;
 
-  const activeFileTab = fileTabs.find((t) => t.id === activeFileTabId) ?? null;
+  const rightPanelTabs: Tab[] = [
+    ...rightPanelToolTabs.map((tab) => ({
+      id: tab.id,
+      label: tab.label,
+      kind: tab.kind,
+      filePath: tab.cwd,
+      workspaceCwd: tab.cwd,
+    })),
+    ...fileTabs,
+  ];
+  const activeToolTab = rightPanelToolTabs.find((tab) => tab.id === rightPanelActiveTabId) ?? null;
+  const activeFileTab = fileTabs.find((tab) => tab.id === rightPanelActiveTabId) ?? null;
 
   const sidebarContent = (
     <>
@@ -380,6 +488,7 @@ export function AppShell() {
         onOpenFile={handleOpenFile}
         explorerRefreshKey={explorerRefreshKey}
         onAtMention={handleAtMention}
+        showExplorer={false}
         onOpenSkills={() => {
           setSkillsConfigOpen(true);
           if (isMobile) setSidebarOpen(false);
@@ -389,11 +498,6 @@ export function AppShell() {
           if (isMobile) setSidebarOpen(false);
         }}
         onClose={() => setSidebarOpen(false)}
-      />
-      <FilesChangedSidebar
-        cwd={selectedSession?.cwd ?? newSessionCwd ?? activeCwd ?? null}
-        onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, selectedSession?.id ?? null)}
-        onOpenDiffFile={handleOpenDiffFile}
       />
       <div className="sidebar-utility-bar" style={{ padding: "8px", flexShrink: 0 }}>
         <button
@@ -1012,7 +1116,7 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Right panel: file viewer — always mounted, width animated via CSS */}
+      {/* Right panel: tools and file viewer — always mounted, width animated via CSS */}
       <div
         className={`right-panel-container glass-file-panel${rightPanelOpen ? " right-panel-open" : " right-panel-closed"}`}
         style={{
@@ -1022,25 +1126,76 @@ export function AppShell() {
           background: "var(--bg)",
         }}
       >
-        {/* Right panel tab bar */}
-        <div style={{ display: "flex", alignItems: "center", flexShrink: 0, background: "var(--bg-panel)", borderBottom: "1px solid var(--border)", height: 36 }}>
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            <TabBar
-              tabs={fileTabs}
-              activeTabId={activeFileTabId ?? ""}
-              onSelectTab={setActiveFileTabId}
-              onCloseTab={handleCloseFileTab}
-            />
+        <div className="right-panel-toolbar">
+          <div className="right-panel-toolbar-tabs">
+            {rightPanelTabs.length > 0 && (
+              <TabBar
+                tabs={rightPanelTabs}
+                activeTabId={rightPanelActiveTabId ?? ""}
+                onSelectTab={handleSelectRightPanelTab}
+                onCloseTab={handleCloseRightPanelTab}
+              />
+            )}
           </div>
-
+          <div ref={rightPanelMenuRef} className="right-panel-toolbar-actions">
+            <button
+              type="button"
+              className="right-panel-action"
+              onClick={handleRightPanelToggle}
+              title="关闭工具面板"
+              aria-label="关闭工具面板"
+            >
+              <PanelIcon size={16} />
+            </button>
+            <button
+              type="button"
+              className="right-panel-action"
+              onClick={() => setRightPanelMenuOpen((open) => !open)}
+              title="新建工具"
+              aria-label="新建工具"
+              aria-expanded={rightPanelMenuOpen}
+            >
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+            {rightPanelMenuOpen && (
+              <div className="right-panel-create-menu" role="menu" aria-label="新建工具">
+                <button type="button" role="menuitem" disabled={!rightPanelCwd} onClick={() => openRightPanelTool("explorer")}>
+                  <FileTreeIcon size={17} />
+                  <span>新建文件树</span>
+                </button>
+                <button type="button" role="menuitem" disabled={!rightPanelCwd} onClick={() => openRightPanelTool("review")}>
+                  <ReviewIcon size={17} />
+                  <span>新建审查</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* File content */}
-        <div style={{ flex: 1, overflow: "hidden" }}>
-          {activeFileTab?.filePath ? (
+        <div className="right-panel-content">
+          {activeToolTab?.kind === "explorer" ? (
+            <div className="right-panel-tool-content">
+              <FileExplorer
+                cwd={activeToolTab.cwd}
+                onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, selectedSession?.id ?? null)}
+                refreshKey={explorerRefreshKey}
+                onAtMention={handleAtMention}
+              />
+            </div>
+          ) : activeToolTab?.kind === "review" ? (
+            <div className="right-panel-tool-content">
+              <FilesChangedSidebar
+                cwd={activeToolTab.cwd}
+                onOpenFile={(filePath, fileName) => handleOpenFile(filePath, fileName, selectedSession?.id ?? null)}
+                onOpenDiffFile={handleOpenDiffFile}
+              />
+            </div>
+          ) : activeFileTab?.filePath ? (
             <FileViewer
               filePath={activeFileTab.filePath}
-              cwd={activeCwd ?? undefined}
+              cwd={activeFileTab.workspaceCwd ?? rightPanelCwd ?? undefined}
               sourceSessionId={activeFileTab.sourceSessionId}
               diffOldContent={activeFileTab.diffOldContent ?? null}
               diffNewContent={activeFileTab.diffNewContent ?? null}
@@ -1051,33 +1206,43 @@ export function AppShell() {
               )}
             />
           ) : (
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", fontSize: 12 }}>
-              No file open
+            <div className="right-panel-launcher">
+              <div className="right-panel-launcher-heading">
+                <h2>开始使用</h2>
+                <p>选择一个工具开始</p>
+              </div>
+              <div className="right-panel-launcher-list">
+                <button type="button" className="right-panel-launcher-item" disabled={!rightPanelCwd} onClick={() => openRightPanelTool("explorer")}>
+                  <span className="right-panel-launcher-icon"><FileTreeIcon size={25} /></span>
+                  <span>
+                    <strong>新建文件树</strong>
+                    <small>浏览和管理项目文件</small>
+                  </span>
+                </button>
+                <button type="button" className="right-panel-launcher-item" disabled={!rightPanelCwd} onClick={() => openRightPanelTool("review")}>
+                  <span className="right-panel-launcher-icon"><ReviewIcon size={25} /></span>
+                  <span>
+                    <strong>新建审查</strong>
+                    <small>查看代码变更和提交历史</small>
+                  </span>
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
     </div>
-    {/* File panel toggle — always visible at top-right */}
-    <button
-      onClick={() => setRightPanelOpen((v) => !v)}
-      title={rightPanelOpen ? "Hide file panel" : "Show file panel"}
-      aria-label={rightPanelOpen ? "Hide file panel" : "Show file panel"}
-      style={{
-        position: "fixed", top: 0, right: 0, zIndex: 300,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        width: 36, height: 36, padding: 0,
-        background: "var(--bg-panel)", border: "none", borderLeft: "1px solid var(--border)", borderBottom: "1px solid var(--border)",
-        color: rightPanelOpen ? "var(--text)" : "var(--text-muted)",
-        cursor: "pointer", transition: "color 0.12s",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = rightPanelOpen ? "var(--text)" : "var(--text-muted)"; }}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
-      </svg>
-    </button>
+    {!rightPanelOpen && (
+      <button
+        type="button"
+        className="right-panel-open-button"
+        onClick={handleRightPanelToggle}
+        title="打开工具面板"
+        aria-label="打开工具面板"
+      >
+        <PanelIcon />
+      </button>
+    )}
     {modelsConfigOpen && <ModelsConfig onClose={() => { setModelsConfigOpen(false); setModelsRefreshKey((k) => k + 1); }} />}
     {skillsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
       <SkillsConfig cwd={(activeCwd ?? selectedSession?.cwd ?? newSessionCwd)!} onClose={() => setSkillsConfigOpen(false)} />

@@ -25,6 +25,7 @@ interface Props {
   onOpenFile?: (filePath: string, fileName: string) => void;
   explorerRefreshKey?: number;
   onAtMention?: (relativePath: string, isDir: boolean) => void;
+  showExplorer?: boolean;
   onOpenSkills?: () => void;
   onOpenPlugins?: () => void;
   onClose?: () => void;
@@ -325,7 +326,7 @@ function SidebarNavigationAction({ label, disabled, onClick, children }: { label
   );
 }
 
-export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, explorerRefreshKey, onAtMention, onOpenSkills, onOpenPlugins, onClose }: Props) {
+export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, explorerRefreshKey, onAtMention, showExplorer = true, onOpenSkills, onOpenPlugins, onClose }: Props) {
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1044,7 +1045,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       </div>
 
       {/* File Explorer section */}
-      {(selectedCwdProp || selectedCwd) && (
+      {showExplorer && (selectedCwdProp || selectedCwd) && (
         <div
           className="sidebar-file-explorer"
           style={{

@@ -6,7 +6,9 @@ import { getFileIcon } from "./FileIcons";
 export interface Tab {
   id: string;
   label: string;
-  filePath: string;
+  filePath?: string;
+  kind?: "explorer" | "review";
+  workspaceCwd?: string | null;
   sourceSessionId?: string | null;
   diffOldContent?: string | null;
   // Frozen per-file diff: right side is the index (Staged) or worktree (Unstaged).
@@ -20,6 +22,23 @@ interface Props {
   activeTabId: string;
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
+}
+
+function ToolTabIcon({ kind }: { kind: "explorer" | "review" }) {
+  if (kind === "explorer") {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H10l2 2.5h6.5A1.5 1.5 0 0 1 20 7v12.5A1.5 1.5 0 0 1 18.5 21h-13A1.5 1.5 0 0 1 4 19.5z" />
+        <path d="M9 10v5m0-5h6m-6 5h6m-3-5v8" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="6" cy="5" r="2" /><circle cx="18" cy="7" r="2" /><circle cx="6" cy="19" r="2" />
+      <path d="M8 5h3a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8m8-10h-2" />
+    </svg>
+  );
 }
 
 export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
@@ -63,7 +82,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
             }}
           >
             <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: "flex", alignItems: "center" }}>
-              {getFileIcon(tab.label, 13)}
+              {tab.kind ? <ToolTabIcon kind={tab.kind} /> : getFileIcon(tab.label, 13)}
             </span>
             <span
               style={{
@@ -72,7 +91,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
                 flex: 1,
                 fontWeight: isActive ? 500 : 400,
               }}
-              title={tab.filePath}
+              title={tab.filePath ?? tab.label}
             >
               {tab.label}{tab.diffSection ? ` (${tab.diffSection})` : ""}
             </span>
