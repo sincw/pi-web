@@ -857,6 +857,7 @@ export function SkillsConfig({
       }}
     >
       <div
+        className="modal-surface"
         style={{
           width: isMobile ? "calc(100vw - 16px)" : 860,
           maxWidth: "calc(100vw - 16px)",

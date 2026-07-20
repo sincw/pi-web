@@ -9,6 +9,7 @@ import {
 } from "@/lib/file-fuzzy";
 import { FolderIcon, getFileIcon } from "./FileIcons";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { WorktreeSwitcher } from "./WorktreeSwitcher";
 
 export interface AttachedImage {
   data: string;   // base64, no prefix
@@ -58,6 +59,8 @@ interface Props {
   draftKey?: string;
   /** Session working directory — enables the @ file autocomplete menu */
   cwd?: string | null;
+  /** Starts a new chat in the selected worktree. */
+  onCwdChange?: (cwd: string, projectRoot: string) => void;
 }
 
 export interface ChatInputHandle {
@@ -198,6 +201,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   onPromptWithStreamingBehavior,
   draftKey,
   cwd,
+  onCwdChange,
 }: Props, ref) {
   const isMobile = useIsMobile();
   const [value, setValue] = useState(() => (draftKey ? getDraft(draftKey)?.value ?? "" : ""));
@@ -864,6 +868,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
   return (
     <div
+      className="chat-input-shell"
       style={{
         flexShrink: 0,
         background: "transparent",
@@ -1016,6 +1021,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         <div style={{ position: "relative" }}>
           {slashMenuOpen && slashQuery !== null && (
             <div
+              className="overlay-surface"
               style={{
                 position: "absolute",
                 left: 0,
@@ -1031,6 +1037,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               }}
             >
               <div
+                className="overlay-surface"
                 style={{
                   padding: "8px 10px",
                   borderBottom: "1px solid var(--border)",
@@ -1153,6 +1160,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               : "";
             return (
               <div
+                className="overlay-surface"
                 style={{
                   position: "absolute",
                   left: 0,
@@ -1241,6 +1249,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             );
           })()}
           <div
+            className="chat-input-field"
             style={{
               display: "flex",
               gap: 8,
@@ -1480,7 +1489,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                       ? { left: 8, right: 8, maxWidth: "calc(100vw - 16px)" }
                       : { left: modelDropdownRect.left, width: "max-content", minWidth: modelDropdownRect.width };
                     return (
-                      <div ref={modelDropdownPanelRef} style={{
+                      <div ref={modelDropdownPanelRef} className="overlay-surface" style={{
                       position: "fixed",
                       bottom,
                       ...panelPos,
@@ -1591,7 +1600,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 More
               </button>
             )}
-            <div style={{
+            <div className={isMobile ? "overlay-surface" : undefined} style={{
               display: isMobile ? (controlsMenuOpen ? "flex" : "none") : "flex",
               alignItems: "center",
               gap: isMobile ? 1 : 2,
@@ -1651,7 +1660,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   {(!isMobile || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>}
                 </button>
                 {thinkingDropdownOpen && (
-                  <div style={{
+                  <div className="overlay-surface" style={{
                     position: "absolute", bottom: "calc(100% + 6px)", right: 0,
                     zIndex: 100, background: "var(--bg)", border: "1px solid var(--border)",
                     borderRadius: 8, boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
@@ -1736,7 +1745,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   {(!isMobile || controlsMenuOpen) && <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>}
                 </button>
                 {toolDropdownOpen && (
-                  <div style={{
+                  <div className="overlay-surface" style={{
                     position: "absolute", bottom: "calc(100% + 6px)", right: 0,
                     zIndex: 100, background: "var(--bg)", border: "1px solid var(--border)",
                     borderRadius: 8, boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
@@ -1774,6 +1783,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   </div>
                 )}
               </div>
+            )}
+
+            {onCwdChange && (
+              <WorktreeSwitcher
+                cwd={cwd}
+                disabled={isStreaming || isCompacting}
+                onCwdChange={onCwdChange}
+              />
             )}
 
             {!isStreaming && onCompact && (

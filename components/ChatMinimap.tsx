@@ -359,6 +359,7 @@ export function ChatMinimap({ messages, streamingMessage, scrollContainer, messa
         return (
           <div
             key={node.index}
+            className="overlay-surface"
             style={{
               position: "absolute",
               top: tooltipPositions[i],

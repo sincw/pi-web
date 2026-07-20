@@ -34,6 +34,7 @@ interface Props {
   onSessionStatsPanelOpen?: () => void;
   onContextUsageChange?: (usage: { percent: number | null; contextWindow: number; tokens: number | null } | null) => void;
   onOpenFile?: (filePath: string) => void;
+  onCwdChange?: (cwd: string, projectRoot: string) => void;
 }
 
 function phaseLabel(phase: AgentPhase): string {
@@ -140,7 +141,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messag
   );
 }
 
-export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile }: Props) {
+export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onSessionStatsPanelOpen, onContextUsageChange, onOpenFile, onCwdChange }: Props) {
   const { soundEnabled, onSoundToggle, playDoneSound, unlockAudio } = useAudio();
   const isMobile = useIsMobile();
 
@@ -318,6 +319,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
       onAudioUnlock={unlockAudio}
       draftKey={session?.id ?? (newSessionCwd ? `new:${newSessionCwd}` : undefined)}
       cwd={session?.cwd ?? newSessionCwd}
+      onCwdChange={onCwdChange}
     />
   );
 
@@ -342,7 +344,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
 
   return (
     <div
-      className="relative flex h-full flex-col overflow-hidden"
+      className="chat-workspace relative flex h-full flex-col overflow-hidden"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -428,7 +430,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
         </div>
       ) : (
       <>
-      <div className="relative flex flex-1 overflow-hidden">
+      <div className="chat-scroll-region relative flex flex-1 overflow-hidden">
         <div
           style={{
             position: "absolute",
@@ -444,7 +446,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
             <NoticeShelf notices={notices} floating align="right" />
           </div>
         </div>
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pt-4 [scrollbar-width:none]">
+        <div ref={scrollContainerRef} className="chat-message-scroll flex-1 overflow-y-auto pt-4 [scrollbar-width:none]">
           <div style={{ padding: `0 ${CHAT_COLUMN_PADDING}px` }}>
             <div style={{ maxWidth: 820, margin: "0 auto" }}>
               <ExtensionStatusBar statuses={extensionStatuses} />
@@ -826,6 +828,7 @@ function ExtensionDialog({
       }}
     >
       <div
+        className="modal-surface"
         role="dialog"
         aria-modal="true"
         style={{
@@ -1039,6 +1042,7 @@ function ExtensionCustomPanel({
     >
       <div
         ref={panelRef}
+        className="modal-surface"
         tabIndex={0}
         role="dialog"
         aria-modal="true"

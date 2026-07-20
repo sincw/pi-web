@@ -304,7 +304,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           {!compact && <span>Branches</span>}
         </button>
         {open && dropdownPos && (
-          <div style={{
+          <div className="overlay-surface" style={{
             position: "fixed",
             top: dropdownPos.top,
             left: dropdownPos.left,
@@ -364,7 +364,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
 
       {/* Tree panel - overlay */}
       {open && (
-        <div style={{
+        <div className="overlay-surface" style={{
           position: "absolute",
           top: "100%",
           left: 0,
