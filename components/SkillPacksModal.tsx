@@ -151,73 +151,51 @@ export function SkillPacksModal({
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.85)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+      className="skill-packs-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="modal-surface"
+        className="modal-surface skill-packs-modal"
         style={{
           width: isMobile ? "calc(100vw - 16px)" : 900,
           maxWidth: "calc(100vw - 16px)",
           height: isMobile ? "calc(100dvh - 16px)" : "78vh",
           maxHeight: "calc(100dvh - 16px)",
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
-          borderRadius: 10,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 18px",
-            borderBottom: "1px solid var(--border)",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Skill Packs</span>
+        <header className="skill-packs-modal-header">
+          <div>
+            <h2>Skill Packs</h2>
+            <span>{packs.length} pack{packs.length === 1 ? "" : "s"}</span>
+          </div>
           <button
+            type="button"
             onClick={onClose}
-            style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 20 }}
+            className="skill-packs-close"
+            title="Close skill packs"
+            aria-label="Close skill packs"
           >
             ×
           </button>
-        </div>
+        </header>
 
         {error && (
-          <div style={{ padding: "8px 18px", fontSize: 12, color: "#f87171", borderBottom: "1px solid var(--border)" }}>
-            {error}
-          </div>
+          <div className="skill-packs-error">{error}</div>
         )}
 
-        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-          <ManageTab
-            packs={packs}
-            librarySkills={librarySkills}
-            selectedId={selectedId}
-            detail={detail}
-            loading={loading}
-            isMobile={isMobile}
-            onSelect={setSelectedId}
-            onCreate={createPack}
-            onSave={savePack}
-            onDelete={deletePack}
-          />
-        </div>
+        <ManageTab
+          packs={packs}
+          librarySkills={librarySkills}
+          selectedId={selectedId}
+          detail={detail}
+          loading={loading}
+          onSelect={setSelectedId}
+          onCreate={createPack}
+          onSave={savePack}
+          onDelete={deletePack}
+        />
       </div>
     </div>
   );
@@ -229,7 +207,6 @@ function ManageTab({
   selectedId,
   detail,
   loading,
-  isMobile,
   onSelect,
   onCreate,
   onSave,
@@ -240,83 +217,84 @@ function ManageTab({
   selectedId: string | null;
   detail: PackDetail | null;
   loading: boolean;
-  isMobile: boolean;
   onSelect: (id: string | null) => void;
   onCreate: () => void;
   onSave: (form: PackForm) => void;
   onDelete: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const visiblePacks = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return packs;
+    return packs.filter((pack) =>
+      [pack.name, pack.description].some((value) => value.toLowerCase().includes(normalizedQuery)),
+    );
+  }, [packs, query]);
+
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: isMobile ? "column" : "row", overflow: "hidden" }}>
-      {/* Left: pack cards */}
-      <div
-        style={{
-          width: isMobile ? "100%" : 260,
-          borderRight: isMobile ? "none" : "1px solid var(--border)",
-          borderBottom: isMobile ? "1px solid var(--border)" : "none",
-          display: "flex",
-          flexDirection: "column",
-          flexShrink: 0,
-          background: "var(--bg-panel)",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
-            {packs.map((p) => {
-              const active = selectedId === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => onSelect(p.id)}
-                  style={{
-                    textAlign: "left",
-                    padding: 12,
-                    borderRadius: 8,
-                    border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-                    background: active ? "rgba(37,99,235,0.08)" : "var(--bg)",
-                    cursor: "pointer",
-                    color: "var(--text)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                    minHeight: 70,
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                    {p.skillCount} skill{p.skillCount === 1 ? "" : "s"}
-                  </div>
-                  {p.description && <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>{p.description}</div>}
-                </button>
-              );
-            })}
+    <div className="skill-packs-layout">
+      <aside className="skill-packs-sidebar">
+        <div className="skill-packs-sidebar-toolbar">
+          <div className="skill-packs-sidebar-heading">
+            <span>Packs</span>
+            <span>{packs.length}</span>
+          </div>
+          <label className="sr-only" htmlFor="skill-pack-search">Search packs</label>
+          <div className="skill-packs-search">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m16 16 4 4" />
+            </svg>
+            <input
+              id="skill-pack-search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search packs"
+            />
           </div>
         </div>
-        <div style={{ padding: 12, borderTop: "1px solid var(--border)" }}>
-          <button
-            onClick={() => void onCreate()}
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: "1px solid var(--border)",
-              background: "none",
-              color: "var(--text-dim)",
-              cursor: loading ? "not-allowed" : "pointer",
-              fontSize: 12,
-            }}
-          >
+
+        <div className="skill-packs-list">
+          {visiblePacks.length === 0 ? (
+            <p className="skill-packs-list-empty">
+              {packs.length === 0 ? "No packs yet" : "No matching packs"}
+            </p>
+          ) : (
+            visiblePacks.map((pack) => {
+              const active = selectedId === pack.id;
+              return (
+                <button
+                  key={pack.id}
+                  type="button"
+                  className={`skill-pack-list-card${active ? " active" : ""}`}
+                  onClick={() => onSelect(pack.id)}
+                >
+                  <span className="skill-pack-list-mark" aria-hidden="true">
+                    {pack.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="skill-pack-list-copy">
+                    <strong>{pack.name}</strong>
+                    <span>{pack.skillCount} skill{pack.skillCount === 1 ? "" : "s"}</span>
+                    {pack.description && <small>{pack.description}</small>}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        <div className="skill-packs-sidebar-footer">
+          <button type="button" className="skill-packs-new" onClick={() => void onCreate()} disabled={loading}>
             + New pack
           </button>
         </div>
-      </div>
+      </aside>
 
-      {/* Right: editor */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 18 }}>
+      <main className="skill-packs-editor">
         {!detail ? (
-          <div style={{ color: "var(--text-dim)", fontSize: 13 }}>Select a pack to edit</div>
+          <div className="skill-packs-editor-empty">
+            {loading ? "Loading packs..." : "Select a pack to edit"}
+          </div>
         ) : (
           <PackEditor
             key={detail.id}
@@ -327,7 +305,7 @@ function ManageTab({
             onDelete={onDelete}
           />
         )}
-      </div>
+      </main>
     </div>
   );
 }
@@ -367,94 +345,70 @@ function PackEditor({
   }, [skills, librarySkills]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Pack name"
-        style={{
-          padding: "8px 10px",
-          fontSize: 14,
-          background: "var(--bg-panel)",
-          border: "1px solid var(--border)",
-          borderRadius: 6,
-          color: "var(--text)",
-          outline: "none",
-        }}
-      />
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Description"
-        rows={2}
-        style={{
-          padding: "8px 10px",
-          fontSize: 13,
-          background: "var(--bg-panel)",
-          border: "1px solid var(--border)",
-          borderRadius: 6,
-          color: "var(--text)",
-          outline: "none",
-          resize: "none",
-        }}
-      />
+    <div className="skill-pack-form">
+      <div className="skill-pack-form-fields">
+        <label>
+          <span>Name</span>
+          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Pack name" />
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Describe this pack"
+            rows={2}
+          />
+        </label>
+      </div>
 
-      <div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10 }}>Skills</div>
+      <section className="skill-pack-section">
+        <div className="skill-pack-section-heading">
+          <span>Included skills</span>
+          <span>{skills.length}</span>
+        </div>
         {skills.length === 0 ? (
-          <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 10 }}>No skills in this pack</div>
+          <p className="skill-pack-empty">No skills in this pack</p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginBottom: 10 }}>
+          <div className="skill-pack-skill-grid">
             {skills.map((s, idx) => {
               const meta = detail.skills.find((d) => d.skillKey === s.skillKey);
               const current = librarySkills.find((l) => l.skillKey.toLowerCase() === s.skillKey.toLowerCase());
               const isStale = current && current.contentHash !== s.contentHash;
               const expanded = expandedSkill === s.skillKey;
               return (
-                <div
-                  key={s.skillKey}
-                  style={{
-                    padding: 10,
-                    borderRadius: 8,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-panel)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <span style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>{meta?.name || s.skillKey}</span>
+                <article key={s.skillKey} className="skill-pack-skill-card">
+                  <div className="skill-pack-skill-card-header">
+                    <span className="skill-pack-skill-mark" aria-hidden="true">
+                      {(meta?.name || s.skillKey).slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className="skill-pack-skill-name">{meta?.name || s.skillKey}</span>
                     <button
+                      type="button"
+                      className="skill-pack-remove"
                       onClick={() => setSkills((prev) => prev.filter((_, i) => i !== idx))}
-                      style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, padding: 0 }}
+                      disabled={saving}
+                      title={`Remove ${meta?.name || s.skillKey}`}
+                      aria-label={`Remove ${meta?.name || s.skillKey}`}
                     >
                       ×
                     </button>
                   </div>
-                  <div style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
-                    {s.skillKey} · {shortHash(s.contentHash)}
-                  </div>
-                  {isStale && <div style={{ fontSize: 10, color: "#d97706" }}>引用需更新</div>}
+                  <span className="skill-pack-skill-key">{s.skillKey} · {shortHash(s.contentHash)}</span>
+                  {isStale && <span className="skill-pack-stale">Needs refresh</span>}
                   {expanded && meta?.description && (
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{meta.description}</div>
+                    <p className="skill-pack-skill-description">{meta.description}</p>
                   )}
-                  <button
-                    onClick={() => setExpandedSkill(expanded ? null : s.skillKey)}
-                    style={{
-                      marginTop: 4,
-                      alignSelf: "flex-start",
-                      fontSize: 10,
-                      color: "var(--accent)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    {expanded ? "Hide details" : "Details"}
-                  </button>
-                </div>
+                  {meta?.description && (
+                    <button
+                      type="button"
+                      className="skill-pack-details"
+                      onClick={() => setExpandedSkill(expanded ? null : s.skillKey)}
+                    >
+                      {expanded ? "Hide details" : "Details"}
+                    </button>
+                  )}
+                </article>
               );
             })}
           </div>
@@ -462,86 +416,69 @@ function PackEditor({
 
         {!showAdd ? (
           <button
+            type="button"
+            className="skill-pack-add"
             onClick={() => setShowAdd(true)}
-            style={{
-              padding: "6px 12px",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              background: "none",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              fontSize: 12,
-            }}
+            disabled={saving}
           >
             + Add skill
           </button>
         ) : availableSkills.length === 0 ? (
-          <div style={{ fontSize: 12, color: "var(--text-dim)" }}>No available library skills</div>
+          <div className="skill-pack-add-panel">
+            <div className="skill-pack-add-panel-heading">
+              <span>No available library skills</span>
+              <button type="button" onClick={() => setShowAdd(false)}>Cancel</button>
+            </div>
+          </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-            {availableSkills.map((s) => (
-              <button
-                key={s.skillKey}
-                onClick={() => {
-                  setSkills((prev) => [...prev, { skillKey: s.skillKey, contentHash: s.contentHash }]);
-                  setShowAdd(false);
-                }}
-                style={{
-                  textAlign: "left",
-                  padding: 10,
-                  borderRadius: 8,
-                  border: "1px dashed var(--border)",
-                  background: "var(--bg-panel)",
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{s.name}</span>
-                <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>{s.skillKey}</span>
-              </button>
-            ))}
+          <div className="skill-pack-add-panel">
+            <div className="skill-pack-add-panel-heading">
+              <span>Add from library</span>
+              <button type="button" onClick={() => setShowAdd(false)}>Cancel</button>
+            </div>
+            <div className="skill-pack-skill-grid">
+              {availableSkills.map((skill) => (
+                <button
+                  key={skill.skillKey}
+                  type="button"
+                  className="skill-pack-available-card"
+                  onClick={() => {
+                    setSkills((prev) => [...prev, { skillKey: skill.skillKey, contentHash: skill.contentHash }]);
+                    setShowAdd(false);
+                  }}
+                  disabled={saving}
+                >
+                  <span className="skill-pack-skill-mark" aria-hidden="true">{skill.name.slice(0, 1).toUpperCase()}</span>
+                  <span>
+                    <strong>{skill.name}</strong>
+                    <small>{skill.skillKey}</small>
+                  </span>
+                  <span aria-hidden="true">+</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
-      </div>
+      </section>
 
-      <div style={{ display: "flex", gap: 10, marginTop: "auto", paddingTop: 10 }}>
+      <footer className="skill-pack-actions">
         <button
+          type="button"
+          className="skill-pack-save"
           onClick={() => onSave({ name, description, skills })}
           disabled={saving || !name.trim()}
-          style={{
-            padding: "7px 16px",
-            borderRadius: 6,
-            border: "none",
-            background: "var(--accent)",
-            color: "#fff",
-            cursor: saving || !name.trim() ? "not-allowed" : "pointer",
-            opacity: saving || !name.trim() ? 0.5 : 1,
-            fontSize: 13,
-            fontWeight: 600,
-          }}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? "Saving..." : "Save"}
         </button>
         <button
+          type="button"
+          className="skill-pack-delete"
           onClick={onDelete}
           disabled={saving}
-          style={{
-            padding: "7px 16px",
-            borderRadius: 6,
-            border: "1px solid var(--border)",
-            background: "none",
-            color: "#f87171",
-            cursor: saving ? "not-allowed" : "pointer",
-            fontSize: 13,
-          }}
         >
           Delete
         </button>
-      </div>
+      </footer>
     </div>
   );
 }

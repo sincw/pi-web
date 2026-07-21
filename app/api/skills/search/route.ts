@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { runNpx } from "@/lib/npx";
 import type { SkillSearchResult } from "@/lib/api-types";
+import {
+  MAX_SKILL_PAGES,
+  SKILL_PAGE_SIZE,
+  loadSkillRanking,
+  paginateSkillResults,
+  type SkillRankingView,
+} from "@/lib/skills-ranking";
 
 export const dynamic = "force-dynamic";
 
 const ANSI_RE = /\x1B\[[0-9;]*m/g;
-const DEFAULT_LIMIT = 50;
+const DEFAULT_LIMIT = SKILL_PAGE_SIZE * MAX_SKILL_PAGES;
 const MIN_LIMIT = 1;
-const MAX_LIMIT = 50;
+const MAX_LIMIT = DEFAULT_LIMIT;
 const SEARCH_API_BASE = process.env.SKILLS_API_URL || "https://skills.sh";
 
 interface SkillsApiSkill {
@@ -25,6 +32,16 @@ function parseLimit(value: unknown): number {
   const num = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(num)) return DEFAULT_LIMIT;
   return Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Math.floor(num)));
+}
+
+function parsePage(value: unknown): number {
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(num)) return 1;
+  return Math.min(MAX_SKILL_PAGES, Math.max(1, Math.floor(num)));
+}
+
+function isRankingView(value: unknown): value is SkillRankingView {
+  return value === "all-time" || value === "trending" || value === "hot";
 }
 
 function formatInstalls(count?: number): string {
@@ -74,29 +91,31 @@ async function searchSkillsApi(query: string, limit: number): Promise<SkillSearc
         url: slug ? `${SEARCH_API_BASE}/${slug}` : "",
       };
     })
-    .filter((skill): skill is SkillSearchResult => skill !== null)
-    .sort((a, b) => parseInstallCount(b.installs) - parseInstallCount(a.installs));
+    .filter((skill): skill is SkillSearchResult => skill !== null);
 }
 
-function parseInstallCount(installs: string): number {
-  const match = installs.match(/^([\d.]+)([KMB])?\s+installs?$/);
-  if (!match) return 0;
-  const value = Number(match[1]);
-  if (!Number.isFinite(value)) return 0;
-  const multiplier = match[2] === "B" ? 1_000_000_000 : match[2] === "M" ? 1_000_000 : match[2] === "K" ? 1_000 : 1;
-  return value * multiplier;
-}
-
-// POST /api/skills/search  body: { query: string, limit?: number }
+// POST /api/skills/search  body: { query?: string, view?: "all-time" | "trending" | "hot", page?: number }
 export async function POST(req: Request) {
   try {
-    const { query, limit: rawLimit } = await req.json() as { query?: string; limit?: unknown };
+    const { query, view, page: rawPage, limit: rawLimit } = await req.json() as {
+      query?: string;
+      view?: unknown;
+      page?: unknown;
+      limit?: unknown;
+    };
+    const page = parsePage(rawPage);
+
+    if (view !== undefined) {
+      if (!isRankingView(view)) return NextResponse.json({ error: "invalid ranking view" }, { status: 400 });
+      return NextResponse.json(paginateSkillResults(await loadSkillRanking(view), page));
+    }
+
     if (!query?.trim()) return NextResponse.json({ error: "query required" }, { status: 400 });
     const limit = parseLimit(rawLimit);
 
     try {
       const results = await searchSkillsApi(query.trim(), limit);
-      return NextResponse.json({ results });
+      return NextResponse.json(paginateSkillResults(results, page));
     } catch {
       const { stdout, stderr } = await runNpx(["skills", "find", query.trim()], {
         timeout: 20000,
@@ -104,13 +123,13 @@ export async function POST(req: Request) {
       });
 
       const results = parseSearchOutput(stdout + stderr).slice(0, limit);
-      return NextResponse.json({ results });
+      return NextResponse.json(paginateSkillResults(results, page));
     }
   } catch (e: unknown) {
     const err = e as { stdout?: string; stderr?: string; message?: string };
     const raw = (err.stdout ?? "") + (err.stderr ?? "");
     const results = raw ? parseSearchOutput(raw) : [];
-    if (results.length > 0) return NextResponse.json({ results });
+    if (results.length > 0) return NextResponse.json(paginateSkillResults(results, 1));
     return NextResponse.json({ error: err.message ?? String(e) }, { status: 500 });
   }
 }

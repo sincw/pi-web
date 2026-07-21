@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type {
   SkillInfo as Skill,
@@ -39,6 +39,34 @@ function updateKey(skill: Skill): string | null {
 
 function shortVersion(version?: string): string {
   return version ? version.slice(0, 8) : "unknown";
+}
+
+function splitMarketPackage(pkg: string): { source: string; name: string } {
+  const separator = pkg.lastIndexOf("@");
+  if (separator <= 0) return { source: "skills.sh", name: pkg };
+  return { source: pkg.slice(0, separator), name: pkg.slice(separator + 1) };
+}
+
+type MarketplaceListing =
+  | { kind: "ranking"; view: "all-time" | "trending" | "hot" }
+  | { kind: "search"; query: string };
+
+function SourceAvatar({ source }: { source: string }) {
+  const owner = source.split("/")[0];
+  return (
+    <span className="skill-source-mark" aria-hidden="true">
+      <span className="skill-source-avatar-fallback">{source.slice(0, 1).toUpperCase()}</span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- dynamic GitHub avatar with a local fallback */}
+      <img
+        src={`https://github.com/${owner}.png?size=64`}
+        alt=""
+        loading="lazy"
+        onError={(event) => {
+          event.currentTarget.style.display = "none";
+        }}
+      />
+    </span>
+  );
 }
 
 function Toggle({
@@ -406,6 +434,13 @@ function LibraryImportPanel({ onImported }: { onImported: () => void }) {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
   const [installError, setInstallError] = useState<string | null>(null);
+  const [installed, setInstalled] = useState<Set<string>>(new Set());
+  const [librarySkillKeys, setLibrarySkillKeys] = useState<Set<string>>(new Set());
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [listing, setListing] = useState<MarketplaceListing>({ kind: "ranking", view: "all-time" });
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [mode, setMode] = useState<"market" | "local" | "git">("market");
   const [localPath, setLocalPath] = useState("");
   const [importingLocal, setImportingLocal] = useState(false);
   const [gitUrl, setGitUrl] = useState("");
@@ -416,8 +451,28 @@ function LibraryImportPanel({ onImported }: { onImported: () => void }) {
     inputRef.current?.focus();
   }, []);
 
-  const search = useCallback(async (q: string) => {
-    if (!q.trim()) return;
+  const fetchLibrarySkillKeys = useCallback(async () => {
+    try {
+      const res = await fetch("/api/skill-library");
+      if (!res.ok) return new Set<string>();
+      const data = (await res.json()) as { skills?: LibrarySkillInfo[] };
+      return new Set((data.skills ?? []).flatMap((skill) => [skill.skillKey, skill.name].map((value) => value.toLowerCase())));
+    } catch {
+      return new Set<string>();
+    }
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    void fetchLibrarySkillKeys().then((keys) => {
+      if (!ignore) setLibrarySkillKeys(keys);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [fetchLibrarySkillKeys]);
+
+  const loadResults = useCallback(async (nextListing: MarketplaceListing, nextPage: number) => {
     setSearching(true);
     setSearchError(null);
     setResults([]);
@@ -425,14 +480,18 @@ function LibraryImportPanel({ onImported }: { onImported: () => void }) {
       const res = await fetch("/api/skills/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q.trim() }),
+        body: JSON.stringify(nextListing.kind === "search"
+          ? { query: nextListing.query, page: nextPage }
+          : { view: nextListing.view, page: nextPage }),
       });
-      const d = (await res.json()) as { results?: SkillSearchResult[]; error?: string };
-      if (d.error) {
-        setSearchError(d.error);
+      const d = (await res.json()) as { results?: SkillSearchResult[]; error?: string; page?: number; totalPages?: number };
+      if (!res.ok || d.error) {
+        setSearchError(d.error ?? `HTTP ${res.status}`);
         return;
       }
       setResults(d.results ?? []);
+      setPage(d.page ?? nextPage);
+      setTotalPages(d.totalPages ?? 0);
       if ((d.results ?? []).length === 0) setSearchError("No skills found");
     } catch (e) {
       setSearchError(String(e));
@@ -440,6 +499,27 @@ function LibraryImportPanel({ onImported }: { onImported: () => void }) {
       setSearching(false);
     }
   }, []);
+
+  const search = useCallback((q: string) => {
+    if (!q.trim()) return;
+    const nextListing: MarketplaceListing = { kind: "search", query: q.trim() };
+    setListing(nextListing);
+    void loadResults(nextListing, 1);
+  }, [loadResults]);
+
+  const loadRanking = useCallback((view: Extract<MarketplaceListing, { kind: "ranking" }>["view"]) => {
+    const nextListing: MarketplaceListing = { kind: "ranking", view };
+    setListing(nextListing);
+    void loadResults(nextListing, 1);
+  }, [loadResults]);
+
+  useEffect(() => {
+    void loadResults({ kind: "ranking", view: "all-time" }, 1);
+  }, [loadResults]);
+
+  useEffect(() => {
+    setSourceFilter("all");
+  }, [results]);
 
   const marketInstall = useCallback(async (pkg: string) => {
     setInstalling(pkg);
@@ -455,13 +535,15 @@ function LibraryImportPanel({ onImported }: { onImported: () => void }) {
         setInstallError(d.error ?? `HTTP ${res.status}`);
         return;
       }
+      setInstalled((current) => new Set(current).add(pkg));
+      setLibrarySkillKeys(await fetchLibrarySkillKeys());
       onImported();
     } catch (e) {
       setInstallError(String(e));
     } finally {
       setInstalling(null);
     }
-  }, [onImported]);
+  }, [fetchLibrarySkillKeys, onImported]);
 
   const localImport = async () => {
     if (!localPath.trim()) return;
@@ -511,172 +593,206 @@ function LibraryImportPanel({ onImported }: { onImported: () => void }) {
     }
   };
 
+  const sources = useMemo(
+    () => Array.from(new Set(results.map((result) => splitMarketPackage(result.package).source))).slice(0, 8),
+    [results],
+  );
+  const visibleResults = useMemo(
+    () => results.filter((result) => sourceFilter === "all" || splitMarketPackage(result.package).source === sourceFilter),
+    [results, sourceFilter],
+  );
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>Add skills to library</div>
-      {installError && <div style={{ fontSize: 12, color: "#f87171" }}>{installError}</div>}
+    <div className="skills-market">
+      <div className="skills-market-title-row">
+        <div>
+          <h2>Install skills</h2>
+        </div>
+      </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Market (skills.sh)</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") search(query);
-            }}
-            placeholder="e.g. react, testing, deploy"
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              fontSize: 13,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              color: "var(--text)",
-              outline: "none",
-            }}
-          />
+      <div className="skills-market-tabs" role="tablist" aria-label="Skill import method">
+        {[
+          ["market", "Browse marketplace"],
+          ["local", "Local install"],
+          ["git", "Git install"],
+        ].map(([key, label]) => (
           <button
-            onClick={() => search(query)}
-            disabled={searching || !query.trim()}
-            style={{
-              padding: "7px 16px",
-              fontSize: 13,
-              borderRadius: 6,
-              border: "none",
-              background: "var(--accent)",
-              color: "#fff",
-              cursor: searching || !query.trim() ? "not-allowed" : "pointer",
-              opacity: searching || !query.trim() ? 0.5 : 1,
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={mode === key}
+            className={mode === key ? "active" : undefined}
+            onClick={() => setMode(key as typeof mode)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {installError && <div className="skills-market-error">{installError}</div>}
+
+      {mode === "market" && (
+        <>
+          <form
+            className="skills-market-search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              search(query);
             }}
           >
-            {searching ? "Searching…" : "Search"}
-          </button>
-        </div>
-        {searchError && <div style={{ fontSize: 12, color: "#f87171" }}>{searchError}</div>}
-        {results.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {results.map((r) => {
-              const isInstalling = installing === r.package;
-              const atIdx = r.package.indexOf("@");
-              const repopart = atIdx > -1 ? r.package.slice(0, atIdx) : r.package;
-              const skillpart = atIdx > -1 ? r.package.slice(atIdx + 1) : null;
-              return (
-                <div
-                  key={r.package}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "10px 12px",
-                    borderRadius: 6,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-panel)",
-                  }}
+            <div className="skills-market-view-switcher" role="tablist" aria-label="Marketplace result order">
+              {[
+                ["all-time", "All time"],
+                ["trending", "Trending"],
+                ["hot", "Hot"],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={listing.kind === "ranking" && listing.view === key}
+                  className={listing.kind === "ranking" && listing.view === key ? "active" : undefined}
+                  onClick={() => loadRanking(key as Extract<MarketplaceListing, { kind: "ranking" }>["view"])}
                 >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{skillpart ?? repopart}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>{repopart}</div>
-                  </div>
-                  <button
-                    onClick={() => void marketInstall(r.package)}
-                    disabled={isInstalling || installing !== null}
-                    style={{
-                      padding: "5px 14px",
-                      fontSize: 12,
-                      borderRadius: 5,
-                      border: "1px solid var(--border)",
-                      background: "none",
-                      color: isInstalling ? "var(--accent)" : "var(--text-muted)",
-                      cursor: isInstalling || installing !== null ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {isInstalling ? "Installing…" : "Install to library"}
-                  </button>
-                </div>
-              );
-            })}
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search the skills.sh marketplace"
+              aria-label="Search skills marketplace"
+            />
+            <button type="submit" disabled={searching || !query.trim()}>
+              {searching ? "Searching..." : "Search"}
+            </button>
+          </form>
+
+          {sources.length > 1 && (
+            <div className="skills-source-filters" aria-label="Filter results by source">
+              <span>Source</span>
+              <button
+                type="button"
+                className={sourceFilter === "all" ? "active" : undefined}
+                onClick={() => setSourceFilter("all")}
+              >
+                All sources
+              </button>
+              {sources.map((source) => (
+                <button
+                  key={source}
+                  type="button"
+                  className={sourceFilter === source ? "active" : undefined}
+                  onClick={() => setSourceFilter(source)}
+                >
+                  @{source}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {searchError ? (
+            <div className="skills-market-empty">{searchError}</div>
+          ) : searching && results.length === 0 ? (
+            <div className="skills-market-empty">Searching marketplace...</div>
+          ) : (
+            <div className="skill-card-grid">
+              {visibleResults.map((result) => {
+                const { source, name } = splitMarketPackage(result.package);
+                const isInstalling = installing === result.package;
+                const isInstalled = installed.has(result.package) || librarySkillKeys.has(name.toLowerCase());
+                return (
+                  <article className="skill-market-card" key={result.package}>
+                    <div className="skill-market-card-heading">
+                      <SourceAvatar source={source} />
+                      <strong title={name}>{name}</strong>
+                      {result.url && (
+                        <a href={result.url} target="_blank" rel="noreferrer" title={`Open ${name} on skills.sh`} aria-label={`Open ${name} on skills.sh`}>
+                          {"\u2197"}
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        className={`skill-market-install${isInstalled ? " is-installed" : ""}`}
+                        onClick={() => void marketInstall(result.package)}
+                        disabled={isInstalled || isInstalling || installing !== null}
+                        title={isInstalled ? `${name} is already in the library` : `Add ${name} to library`}
+                        aria-label={isInstalled ? `${name} is already in the library` : `Add ${name} to library`}
+                      >
+                        {isInstalled ? "\u2713" : isInstalling ? "..." : "+"}
+                      </button>
+                    </div>
+                    <div className="skill-card-meta">
+                      <span>@{source}</span>
+                      {result.installs && <span>{result.installs}</span>}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <nav className="skills-market-pagination" aria-label="Marketplace pages">
+              <button type="button" onClick={() => void loadResults(listing, page - 1)} disabled={searching || page === 1}>
+                Previous
+              </button>
+              <span>{page} / {totalPages}</span>
+              <button type="button" onClick={() => void loadResults(listing, page + 1)} disabled={searching || page === totalPages}>
+                Next
+              </button>
+            </nav>
+          )}
+        </>
+      )}
+
+      {mode === "local" && (
+        <form
+          className="skills-import-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void localImport();
+          }}
+        >
+          <label htmlFor="library-local-path">Skill directory</label>
+          <div>
+            <input
+              id="library-local-path"
+              value={localPath}
+              onChange={(event) => setLocalPath(event.target.value)}
+              placeholder="/path/to/skill-directory containing SKILL.md"
+            />
+            <button type="submit" disabled={importingLocal || !localPath.trim()}>
+              {importingLocal ? "Importing..." : "Import"}
+            </button>
           </div>
-        )}
-      </div>
+        </form>
+      )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Local directory</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            value={localPath}
-            onChange={(e) => setLocalPath(e.target.value)}
-            placeholder="/path/to/skill-directory containing SKILL.md"
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              fontSize: 13,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              color: "var(--text)",
-              outline: "none",
-              fontFamily: "var(--font-mono)",
-            }}
-          />
-          <button
-            onClick={() => void localImport()}
-            disabled={importingLocal || !localPath.trim()}
-            style={{
-              padding: "7px 16px",
-              fontSize: 13,
-              borderRadius: 6,
-              border: "none",
-              background: "var(--accent)",
-              color: "#fff",
-              cursor: importingLocal || !localPath.trim() ? "not-allowed" : "pointer",
-              opacity: importingLocal || !localPath.trim() ? 0.5 : 1,
-            }}
-          >
-            {importingLocal ? "Importing…" : "Import"}
-          </button>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Git repository</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            value={gitUrl}
-            onChange={(e) => setGitUrl(e.target.value)}
-            placeholder="https://github.com/owner/repo.git"
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              fontSize: 13,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              color: "var(--text)",
-              outline: "none",
-              fontFamily: "var(--font-mono)",
-            }}
-          />
-          <button
-            onClick={() => void gitImport()}
-            disabled={importingGit || !gitUrl.trim()}
-            style={{
-              padding: "7px 16px",
-              fontSize: 13,
-              borderRadius: 6,
-              border: "none",
-              background: "var(--accent)",
-              color: "#fff",
-              cursor: importingGit || !gitUrl.trim() ? "not-allowed" : "pointer",
-              opacity: importingGit || !gitUrl.trim() ? 0.5 : 1,
-            }}
-          >
-            {importingGit ? "Importing…" : "Import all"}
-          </button>
-        </div>
-      </div>
+      {mode === "git" && (
+        <form
+          className="skills-import-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void gitImport();
+          }}
+        >
+          <label htmlFor="library-git-url">Git repository</label>
+          <div>
+            <input
+              id="library-git-url"
+              value={gitUrl}
+              onChange={(event) => setGitUrl(event.target.value)}
+              placeholder="https://github.com/owner/repo.git"
+            />
+            <button type="submit" disabled={importingGit || !gitUrl.trim()}>
+              {importingGit ? "Importing..." : "Import all"}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
@@ -1030,7 +1146,7 @@ function LibraryTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1070,106 +1186,76 @@ function LibraryTab() {
     }
   };
 
+  const visibleSkills = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return skills;
+    return skills.filter((skill) =>
+      [skill.name, skill.skillKey, skill.description].some((value) => value.toLowerCase().includes(normalized)),
+    );
+  }, [query, skills]);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Skill library directory</div>
-        <div style={{ display: "flex", gap: 8 }}>
+    <div className="skills-library">
+      <div className="skills-library-heading">
+        <div>
+          <h2>Library skills</h2>
+        </div>
+        <label className="skills-library-search">
+          <span className="sr-only">Search library skills</span>
           <input
-            value={libraryRoot}
-            onChange={(e) => setLibraryRoot(e.target.value)}
-            placeholder="/path/to/skill-library"
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              fontSize: 13,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              color: "var(--text)",
-              outline: "none",
-              fontFamily: "var(--font-mono)",
-            }}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search library skills"
           />
-          <button
-            onClick={() => void saveRoot()}
-            disabled={saving || !libraryRoot.trim()}
-            style={{
-              padding: "7px 14px",
-              border: "none",
-              borderRadius: 6,
-              background: "var(--accent)",
-              color: "#fff",
-              cursor: saving || !libraryRoot.trim() ? "not-allowed" : "pointer",
-              opacity: saving || !libraryRoot.trim() ? 0.5 : 1,
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            {saving ? "Saving…" : "Set"}
-          </button>
-        </div>
-        {!configuredRoot && (
-          <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
-            Choose a local directory as your skill library. Skills will be copied from there into projects.
-          </div>
-        )}
+        </label>
       </div>
 
-      {error && <div style={{ fontSize: 12, color: "#f87171" }}>{error}</div>}
+      <form
+        className="skills-library-directory"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void saveRoot();
+        }}
+      >
+        <label htmlFor="skill-library-root">Library directory</label>
+        <input
+          id="skill-library-root"
+          value={libraryRoot}
+          onChange={(event) => setLibraryRoot(event.target.value)}
+          placeholder="/path/to/skill-library"
+        />
+        <button type="submit" disabled={saving || !libraryRoot.trim()}>
+          {saving ? "Saving..." : "Save"}
+        </button>
+      </form>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500, marginBottom: 8 }}>
-          Library skills ({skills.length})
+      {!configuredRoot && <div className="skills-library-note">Choose a local directory as your shared skill library.</div>}
+      {error && <div className="skills-market-error">{error}</div>}
+
+      {loading ? (
+        <div className="skills-market-empty">Loading library...</div>
+      ) : skills.length === 0 ? (
+        <div className="skills-market-empty">No skills in the library yet. Add one from Acquire.</div>
+      ) : visibleSkills.length === 0 ? (
+        <div className="skills-market-empty">No library skills match this search.</div>
+      ) : (
+        <div className="skill-card-grid">
+          {visibleSkills.map((skill) => (
+            <article className="skill-library-card" key={skill.skillKey}>
+              <div className="skill-market-card-heading">
+                <span className="skill-source-mark" aria-hidden="true">{skill.name.slice(0, 1).toUpperCase()}</span>
+                <strong title={skill.name}>{skill.name}</strong>
+                <span className="skill-library-card-hash" title={`Content hash ${skill.contentHash}`}>{shortHash(skill.contentHash)}</span>
+              </div>
+              {skill.description && <p>{skill.description}</p>}
+              <div className="skill-card-meta">
+                <span>{skill.skillKey}</span>
+                <span>Library</span>
+              </div>
+            </article>
+          ))}
         </div>
-        {loading ? (
-          <div style={{ fontSize: 12, color: "var(--text-dim)" }}>Loading…</div>
-        ) : skills.length === 0 ? (
-          <div style={{ fontSize: 12, color: "var(--text-dim)" }}>No skills in the library yet.</div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-            {skills.map((s) => {
-              const isExpanded = expanded === s.skillKey;
-              return (
-                <div
-                  key={s.skillKey}
-                  style={{
-                    padding: 10,
-                    borderRadius: 8,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-panel)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{s.name}</div>
-                  <div style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
-                    {s.skillKey} · {shortHash(s.contentHash)}
-                  </div>
-                  {isExpanded && s.description && (
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>{s.description}</div>
-                  )}
-                  <button
-                    onClick={() => setExpanded(isExpanded ? null : s.skillKey)}
-                    style={{
-                      alignSelf: "flex-start",
-                      fontSize: 10,
-                      color: "var(--accent)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    {isExpanded ? "Hide details" : "Details"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -1773,13 +1859,13 @@ export function SkillsConfig({
           )}
 
           {tab === "library" && (
-            <div style={{ height: "100%", padding: 18, overflow: "auto" }}>
+            <div style={{ height: "100%", overflow: "hidden" }}>
               <LibraryTab />
             </div>
           )}
 
           {tab === "acquire" && (
-            <div style={{ height: "100%", padding: 18, overflow: "auto" }}>
+            <div style={{ height: "100%", overflow: "hidden" }}>
               <LibraryImportPanel onImported={() => void loadSkills()} />
             </div>
           )}
