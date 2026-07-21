@@ -1393,6 +1393,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             </div>
           ) : (
             <button
+              className="chat-send-button"
               onClick={handleSend}
               disabled={!value.trim() && !attachedImages.length}
               style={{

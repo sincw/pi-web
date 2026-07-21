@@ -34,8 +34,8 @@ function ToolLauncher({ disabled, onOpenTool }: { disabled: boolean; onOpenTool:
   return (
     <div className="right-panel-launcher">
       <div className="right-panel-launcher-heading">
-        <h2>开始使用</h2>
-        <p>选择一个工具开始</p>
+        <h2>开始使用 Pi Agent Web</h2>
+        <p>选择一个工具开始你的智能开发之旅</p>
       </div>
       <div className="right-panel-launcher-list">
         {rightPanelTools.map((tool) => {
@@ -78,6 +78,10 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 641px)").matches) setPanelOpen(true);
+  }, []);
 
   useEffect(() => {
     const previousWorkspace = workspaceRef.current;
