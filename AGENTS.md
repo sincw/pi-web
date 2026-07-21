@@ -62,7 +62,17 @@ app/api/
   plugins/route.ts                GET/POST package plugin management
   skills/route.ts                 GET/PATCH loaded skills and disable-model-invocation
   skills/install/route.ts         POST install skills through npx skills add
+  skills/install-from-library/route.ts POST copy one library skill into a workspace
   skills/search/route.ts          GET/POST skills.sh search
+  skill-library/route.ts          GET/PUT global skill library root and contents
+  skill-library/import/route.ts   POST import market, local, or Git skills into library
+  skill-library/skills/route.ts   GET library skills
+  skill-library/skills/[skillKey]/route.ts GET/DELETE one library skill
+  skill-packs/route.ts            GET/POST global skill pack list/create
+  skill-packs/[id]/route.ts       GET/PATCH/DELETE one skill pack
+  workspace-skill-packs/route.ts  GET/DELETE workspace pack state/unapply
+  workspace-skill-packs/preview/route.ts POST compute apply plan
+  workspace-skill-packs/apply/route.ts POST apply confirmed plan
   worktrees/route.ts              GET/POST/DELETE git worktrees
 
 lib/
@@ -72,12 +82,17 @@ lib/
   file-paths.ts        client/server path encoding helpers
   markdown.ts          shared markdown helpers
   npx.ts               npx runner used by skill install
+  content-hash.ts       deterministic hash for a library skill directory
   pi-types.ts          local structural types for pi SDK objects
   rpc-manager.ts      AgentSessionWrapper + registry + startRpcSession
   session-reader.ts   SessionManager wrappers + path cache + buildSessionContext adapter
+  skill-library.ts     library scan/import/delete primitives
+  skill-packs-store.ts global skill-pack config and pack CRUD
+  skill-pack-apply.ts  preview, atomic apply/rollback, and unapply
   tool-presets.ts     PRESET_NONE/DEFAULT/FULL + getPresetFromTools()
   types.ts            shared TypeScript types
   normalize.ts        normalizeToolCalls() — field name mismatch between file format and our types
+  workspace-packs.ts   workspace pack state and dependency calculation
   worktree.ts         project/worktree resolution and git worktree operations
 
 components/
@@ -92,6 +107,7 @@ components/
   ModelsConfig.tsx    modal for editing models.json (opened from sidebar bottom)
   PluginsConfig.tsx   modal for installed package plugins
   SkillsConfig.tsx    modal for loaded/search/installable skills
+  SkillPacksModal.tsx global skill-pack definition management
   FileExplorer.tsx    reusable project file tree
   FileIcons.tsx       file icon helpers
   FileViewer.tsx      file content preview
@@ -105,7 +121,7 @@ components/
     types.ts          right-panel tab, tool, and imperative-handle contracts
 
 hooks/
-  useAgentSession.ts  messages + streaming + SSE + fork/navigate/reconciliation logic
+  useAgentSession.ts  messages + streaming + SSE + fork/navigate/reconciliation + pack reload
   useAudio.ts         completion sound + browser AudioContext unlock
   useDragDrop.ts      shared drag/drop state
   useIsMobile.ts      responsive breakpoint hook
@@ -174,6 +190,13 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - `/api/skills` uses `DefaultResourceLoader` so settings paths, package skills, and project `.agents/skills` are listed the same way the runtime sees them.
 - Skill toggling edits only the `disable-model-invocation` frontmatter key on the target `SKILL.md`; keep that surgical so user formatting survives.
 - `/api/skills/install` shells through `npx skills add ... --agent pi`; project installs run with the selected cwd.
+
+### Skill packs
+- The global configuration is `~/.pi/agent/skill-packs.json`; its default `libraryRoot` is `~/.pi-web/lib/skills`, whose skills live under `<libraryRoot>/.pi/skills/<skillKey>`. Workspace state is `<cwd>/.pi/skill-packs.json`, while applied files live under `<cwd>/.pi/skills/<skillKey>`.
+- A pack holds `{ skillKey, contentHash }` snapshots. `preview()` blocks missing or stale library skills and same-key/different-hash conflicts; `applyPlan()` rechecks the hash and rolls back newly created directories if a copy fails. Keep decisions in `lib/skill-pack-apply.ts` and state-only operations in `lib/workspace-packs.ts`.
+- `unapplyPack()` deletes every skill in the current pack definition that no remaining applied pack requires. This can delete a pre-existing skill that was skipped during apply; do not describe it as a label-only operation or bypass it with `removeAppliedPack()` in routes.
+- Applying or removing a pack calls `SkillsConfig.onPacksChanged`, which increments `AppShell.packsRefreshKey`. `useAgentSession` owns the resulting reload: defer it while the agent runs, refresh `get_commands` after reload, and await the same Promise before the next prompt. Do not add competing reload effects in `ChatWindow`.
+- Tests: `lib/content-hash.test.mjs`, `lib/skill-library.test.mjs`, `lib/skill-packs-store.test.mjs`, `lib/workspace-packs.test.mjs`, `lib/skill-pack-apply.test.mjs`, and `components/ChatWindow.test.mjs`. See `docs/skill-packs.md` for the implementation-level behavior.
 
 ### Auth and model config
 - `ModelsConfig` combines models from `~/.pi/agent/models.json` with provider auth status from pi's `AuthStorage`/`ModelRegistry`.

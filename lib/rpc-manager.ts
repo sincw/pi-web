@@ -478,9 +478,11 @@ export class AgentSessionWrapper {
           });
         }
         for (const skill of this.inner.resourceLoader.getSkills().skills) {
+          const key = skill.baseDir.split(/[\\/]/).pop() ?? "";
+          const displayName = skill.name || key;
           commands.push({
-            name: `skill:${skill.name}`,
-            description: skill.description,
+            name: `skill:${displayName}`,
+            description: skill.description || key,
             source: "skill",
             sourceInfo: skill.sourceInfo,
           });
@@ -500,10 +502,13 @@ export class AgentSessionWrapper {
         await this.waitForExtensionsBound();
         this.extensionStatuses.clear();
         this.extensionWidgets.clear();
+        // Force extension rebinding so resources (skills/prompts/themes) are
+        // re-discovered from the filesystem after reload.
+        this.extensionsBound = false;
+        this.extensionBindingPromise = null;
         await this.inner.reload();
-        if (typeof this.inner.bindExtensions !== "function") {
-          this.inner.extensionRunner.setUIContext?.(this.createExtensionUiContext(), "rpc");
-        }
+        this.beginExtensionBinding({ forceEmptySystemPrompt: this.forceEmptySystemPrompt });
+        await this.waitForExtensionsBound();
         this.applyForcedEmptySystemPrompt();
         return { success: true };
       }

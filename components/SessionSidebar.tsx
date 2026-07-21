@@ -28,6 +28,7 @@ interface Props {
   showExplorer?: boolean;
   onOpenSkills?: () => void;
   onOpenPlugins?: () => void;
+  onOpenPacks?: () => void;
   onClose?: () => void;
 }
 
@@ -326,7 +327,7 @@ function SidebarNavigationAction({ label, disabled, onClick, children }: { label
   );
 }
 
-export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, explorerRefreshKey, onAtMention, showExplorer = true, onOpenSkills, onOpenPlugins, onClose }: Props) {
+export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, explorerRefreshKey, onAtMention, showExplorer = true, onOpenSkills, onOpenPlugins, onOpenPacks, onClose }: Props) {
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -698,7 +699,12 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               <circle cx="9" cy="9" r="5.5" /><path d="m13 13 6.2 6.2" /><path d="M5.2 13.1 3 15.3" />
             </svg>
           </SidebarNavigationAction>
-          <SidebarNavigationAction label="MCP" disabled={!selectedCwd || !onOpenPlugins} onClick={() => onOpenPlugins?.()}>
+          <SidebarNavigationAction label="Packs" disabled={!selectedCwd || !onOpenPacks} onClick={() => onOpenPacks?.()}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
+            </svg>
+          </SidebarNavigationAction>
+          <SidebarNavigationAction label="Plugins" disabled={!selectedCwd || !onOpenPlugins} onClick={() => onOpenPlugins?.()}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M7 5v5a3 3 0 0 0 6 0V5" /><path d="M17 19v-5a3 3 0 0 0-6 0v5" /><path d="M7 5H5a2 2 0 0 0-2 2v2" /><path d="M17 19h2a2 2 0 0 0 2-2v-2" />
             </svg>

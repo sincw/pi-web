@@ -144,6 +144,7 @@ export interface UseAgentSessionOptions {
   onSessionCreated?: (session: SessionInfo) => void;
   onSessionForked?: (newSessionId: string) => void;
   modelsRefreshKey?: number;
+  packsRefreshKey?: number;
   chatInputRef?: React.RefObject<ChatInputHandle | null>;
   onBranchDataChange?: (tree: SessionTreeNode[], activeLeafId: string | null, onLeafChange: (leafId: string | null) => void) => void;
   onSystemPromptChange?: (prompt: string | null) => void;
@@ -321,7 +322,7 @@ type SlashCommandsResponse = {
 export function useAgentSession(opts: UseAgentSessionOptions) {
   const {
     session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked,
-    modelsRefreshKey, onBranchDataChange, onSystemPromptChange, onSessionStatsPanelOpen,
+    modelsRefreshKey, packsRefreshKey, onBranchDataChange, onSystemPromptChange, onSessionStatsPanelOpen,
   } = opts;
 
   const isNew = session === null && newSessionCwd !== null;
@@ -378,6 +379,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const newSessionPromotedRef = useRef(false);
   const promptRunIdRef = useRef(0);
   const optimisticUserMessageKeyRef = useRef<string | null>(null);
+  const prevPacksRefreshKeyRef = useRef(packsRefreshKey);
+  const pendingSkillReloadRef = useRef(false);
+  const skillReloadPromiseRef = useRef<Promise<void> | null>(null);
 
   const setToolPresetState = opts.setToolPreset ?? setToolPreset;
 
@@ -683,6 +687,49 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       },
     });
   }, []);
+
+  const ensurePackSkillsReloaded = useCallback(() => {
+    if (skillReloadPromiseRef.current) return skillReloadPromiseRef.current;
+    if (!pendingSkillReloadRef.current) return Promise.resolve();
+
+    const task = (async () => {
+      do {
+        pendingSkillReloadRef.current = false;
+        const sid = sessionIdRef.current;
+        if (sid) await sendAgentCommand(sid, { type: "reload" });
+        await loadSlashCommands();
+      } while (pendingSkillReloadRef.current);
+    })();
+    skillReloadPromiseRef.current = task;
+    void task.then(
+      () => { skillReloadPromiseRef.current = null; },
+      () => {
+        pendingSkillReloadRef.current = true;
+        skillReloadPromiseRef.current = null;
+      },
+    );
+    return task;
+  }, [loadSlashCommands]);
+
+  useEffect(() => {
+    if (prevPacksRefreshKeyRef.current === packsRefreshKey) return;
+    prevPacksRefreshKeyRef.current = packsRefreshKey;
+    pendingSkillReloadRef.current = true;
+    if (agentRunning) {
+      addNotice({ type: "info", message: "Pack skills will be available after the current run ends." });
+      return;
+    }
+    void ensurePackSkillsReloaded().catch((e) => {
+      addNotice({ type: "error", message: `Failed to reload pack skills: ${String(e)}` });
+    });
+  }, [packsRefreshKey, agentRunning, addNotice, ensurePackSkillsReloaded]);
+
+  useEffect(() => {
+    if (agentRunning || !pendingSkillReloadRef.current) return;
+    void ensurePackSkillsReloaded().catch((e) => {
+      addNotice({ type: "error", message: `Failed to reload pack skills: ${String(e)}` });
+    });
+  }, [agentRunning, addNotice, ensurePackSkillsReloaded]);
 
   const handleExtensionUiRequest = useCallback((request: ExtensionUiRequest) => {
     switch (request.method) {
@@ -993,7 +1040,14 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const handleSend = useCallback(async (message: string, images?: AttachedImage[]) => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage && !images?.length) return;
-    if (agentRunning) return;
+    if (agentRunningRef.current) return;
+    try {
+      await ensurePackSkillsReloaded();
+    } catch (e) {
+      addNotice({ type: "error", message: `Failed to reload pack skills: ${String(e)}` });
+      return;
+    }
+    if (agentRunningRef.current) return;
     const isSlashCommandPrompt = !images?.length && trimmedMessage.startsWith("/");
     const promptRunId = promptRunIdRef.current + 1;
 
@@ -1072,7 +1126,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       setAgentPhase(null);
       dispatch({ type: "end" });
     }
-  }, [isNew, newSessionCwd, newSessionModel, session, agentRunning, ensureNewSession, ensureEventsConnected, promoteNewSession, waitForPromptSettlement, addNotice]);
+  }, [isNew, newSessionCwd, newSessionModel, session, ensureNewSession, ensureEventsConnected, promoteNewSession, waitForPromptSettlement, addNotice, ensurePackSkillsReloaded]);
 
   const handleAbort = useCallback(async () => {
     const sid = sessionIdRef.current;
@@ -1546,7 +1600,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     handleRecallQueue,
     handleBuiltinSlashCommand,
     handleToolPresetChange, handleThinkingLevelChange, loadTools, loadSlashCommands, setActiveLeafId, setData, setMessages,
-    dispatch, setAgentRunning, setForkingEntryId,
+    dispatch, setAgentRunning, setForkingEntryId, addNotice,
     // Subscriptions
     handleAgentEventRef,
   };

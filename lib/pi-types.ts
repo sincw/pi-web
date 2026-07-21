@@ -57,6 +57,7 @@ interface PromptTemplateLike {
 interface SkillLike {
   name: string;
   description?: string;
+  baseDir: string;
   sourceInfo: SlashCommandInfo["sourceInfo"];
 }
 

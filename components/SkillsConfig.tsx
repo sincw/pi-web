@@ -4,14 +4,21 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type {
   SkillInfo as Skill,
-  SkillInstallScope,
   SkillSearchResult,
   SkillUpdateResult,
+  SkillPackInfo,
+  SkillPackDetail,
+  AppliedPackInfo,
+  ApplyPreviewResponse,
+  LibrarySkillInfo,
 } from "@/lib/api-types";
 
 function shortenPath(p: string): string {
-  // Match common home dir patterns: /Users/xxx, /home/xxx
   return p.replace(/^\/(?:Users|home)\/[^/]+/, "~");
+}
+
+function shortHash(hash?: string): string {
+  return hash ? hash.slice(0, 8) : "";
 }
 
 function sourceLabel(skill: Skill): string {
@@ -22,10 +29,12 @@ function sourceLabel(skill: Skill): string {
   return "path";
 }
 
+function skillKeyFromSkill(skill: Skill): string {
+  return skill.baseDir.replace(/\\/g, "/").split("/").pop() ?? "";
+}
+
 function updateKey(skill: Skill): string | null {
-  return skill.install
-    ? `${skill.install.scope}\0${skill.install.package}`
-    : null;
+  return skill.install ? `${skill.install.scope}\0${skill.install.package}` : null;
 }
 
 function shortVersion(version?: string): string {
@@ -119,7 +128,6 @@ function SkillDetail({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Path + tag + toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
         <span
           style={{
@@ -127,12 +135,8 @@ function SkillDetail({
             padding: "1px 5px",
             borderRadius: 3,
             flexShrink: 0,
-            background:
-              label === "project"
-                ? "rgba(99,102,241,0.12)"
-                : "rgba(120,120,120,0.12)",
-            color:
-              label === "project" ? "rgba(99,102,241,0.8)" : "var(--text-dim)",
+            background: label === "project" ? "rgba(99,102,241,0.12)" : "rgba(120,120,120,0.12)",
+            color: label === "project" ? "rgba(99,102,241,0.8)" : "var(--text-dim)",
           }}
         >
           {label}
@@ -150,25 +154,13 @@ function SkillDetail({
         >
           {displayPath(skill.filePath)}
         </span>
-        <Toggle
-          enabled={enabled}
-          loading={toggling}
-          onToggle={() => onToggle(skill)}
-        />
-        {saveError && (
-          <span style={{ fontSize: 12, color: "#f87171", flexShrink: 0 }}>
-            {saveError}
-          </span>
-        )}
+        <Toggle enabled={enabled} loading={toggling} onToggle={() => onToggle(skill)} />
+        {saveError && <span style={{ fontSize: 12, color: "#f87171", flexShrink: 0 }}>{saveError}</span>}
       </div>
 
       {skill.install?.skillsShUrl && (
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          <span
-            style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}
-          >
-            Source
-          </span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Source</span>
           <a
             href={skill.install.skillsShUrl}
             target="_blank"
@@ -201,26 +193,9 @@ function SkillDetail({
 
       {skill.install && (
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-          <span
-            style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}
-          >
-            Version
-          </span>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                color: "var(--text-muted)",
-              }}
-            >
+          <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Version</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-muted)" }}>
               {shortVersion(updateStatus?.currentVersion ?? skill.install.versionHash)}
             </span>
             {skill.install.canCheckForUpdates && (
@@ -242,18 +217,11 @@ function SkillDetail({
               </button>
             )}
             {updateStatus?.state === "update-available" && (
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 12,
-                  color: "#d97706",
-                }}
-              >
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "#d97706" }}>
                 {shortVersion(updateStatus.latestVersion)}
               </span>
             )}
-            {(checkingUpdate ||
-              (updateStatus && updateStatus.state !== "update-available")) && (
+            {(checkingUpdate || (updateStatus && updateStatus.state !== "update-available")) && (
               <span
                 style={{
                   fontSize: 12,
@@ -262,8 +230,8 @@ function SkillDetail({
                     : updateStatus?.state === "up-to-date"
                       ? "#16a34a"
                       : updateStatus?.state === "error"
-                          ? "#ef4444"
-                          : "var(--text-dim)",
+                        ? "#ef4444"
+                        : "var(--text-dim)",
                 }}
               >
                 {checkingUpdate
@@ -271,8 +239,8 @@ function SkillDetail({
                   : updateStatus?.state === "up-to-date"
                     ? "Up to date"
                     : updateStatus?.state === "unsupported"
-                        ? "Automatic checks unavailable"
-                        : updateStatus?.message || "Check failed"}
+                      ? "Automatic checks unavailable"
+                      : updateStatus?.message || "Check failed"}
               </span>
             )}
             {updateStatus?.state === "update-available" && (
@@ -295,64 +263,153 @@ function SkillDetail({
               </button>
             )}
           </div>
-          {updateError && (
-            <span style={{ fontSize: 12, color: "#ef4444" }}>{updateError}</span>
-          )}
+          {updateError && <span style={{ fontSize: 12, color: "#ef4444" }}>{updateError}</span>}
         </div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <span
-          style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}
-        >
-          Name
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 14,
-            color: "var(--text)",
-          }}
-        >
-          {skill.name}
-        </span>
+        <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Name</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: "var(--text)" }}>{skill.name}</span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <span
-          style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}
-        >
-          Description
-        </span>
-        <span
-          style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}
-        >
-          {skill.description}
-        </span>
+        <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Description</span>
+        <span style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}>{skill.description}</span>
       </div>
     </div>
   );
 }
 
-function AddSkillPanel({
+function LibrarySkillPicker({
   cwd,
-  installedPackages,
   onInstalled,
 }: {
   cwd: string;
-  installedPackages: Record<SkillInstallScope, ReadonlySet<string>>;
   onInstalled: () => void;
 }) {
+  const [skills, setSkills] = useState<LibrarySkillInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [installing, setInstalling] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch("/api/skill-library")
+      .then((res) => res.json() as Promise<{ skills?: LibrarySkillInfo[]; error?: string }>)
+      .then((data) => {
+        if (data.error) setError(data.error);
+        else setSkills(data.skills ?? []);
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const install = async (skillKey: string) => {
+    setInstalling(skillKey);
+    setError(null);
+    try {
+      const res = await fetch("/api/skills/install-from-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd, skillKey }),
+      });
+      const d = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || d.error) throw new Error(d.error ?? `HTTP ${res.status}`);
+      onInstalled();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setInstalling(null);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 12 }}>Add Skill from Library</div>
+      {error && <div style={{ fontSize: 12, color: "#f87171", marginBottom: 10 }}>{error}</div>}
+      {loading ? (
+        <div style={{ fontSize: 12, color: "var(--text-dim)" }}>Loading…</div>
+      ) : skills.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--text-dim)" }}>No skills in the library. Add skills in the Acquire tab first.</div>
+      ) : (
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+            {skills.map((s) => {
+              const isExpanded = expanded === s.skillKey;
+              return (
+                <div
+                  key={s.skillKey}
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-panel)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{s.name}</span>
+                    <button
+                      onClick={() => void install(s.skillKey)}
+                      disabled={installing === s.skillKey}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: installing === s.skillKey ? "var(--accent)" : "var(--accent)",
+                        cursor: installing === s.skillKey ? "not-allowed" : "pointer",
+                        fontSize: 12,
+                        padding: 0,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {installing === s.skillKey ? "Adding…" : "Add"}
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+                    {s.skillKey} · {shortHash(s.contentHash)}
+                  </div>
+                  {isExpanded && s.description && (
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>{s.description}</div>
+                  )}
+                  <button
+                    onClick={() => setExpanded(isExpanded ? null : s.skillKey)}
+                    style={{
+                      alignSelf: "flex-start",
+                      fontSize: 10,
+                      color: "var(--accent)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    {isExpanded ? "Hide details" : "Details"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LibraryImportPanel({ onImported }: { onImported: () => void }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
   const [installError, setInstallError] = useState<string | null>(null);
-  const [newlyInstalledPkgs, setNewlyInstalledPkgs] = useState<Set<string>>(
-    new Set(),
-  );
-  const [scope, setScope] = useState<"global" | "project">("global");
+  const [localPath, setLocalPath] = useState("");
+  const [importingLocal, setImportingLocal] = useState(false);
+  const [gitUrl, setGitUrl] = useState("");
+  const [importingGit, setImportingGit] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -370,10 +427,7 @@ function AddSkillPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q.trim() }),
       });
-      const d = (await res.json()) as {
-        results?: SkillSearchResult[];
-        error?: string;
-      };
+      const d = (await res.json()) as { results?: SkillSearchResult[]; error?: string };
       if (d.error) {
         setSearchError(d.error);
         return;
@@ -387,55 +441,83 @@ function AddSkillPanel({
     }
   }, []);
 
-  const install = useCallback(
-    async (pkg: string) => {
-      setInstalling(pkg);
-      setInstallError(null);
-      try {
-        const res = await fetch("/api/skills/install", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ package: pkg, scope, cwd }),
-        });
-        const d = (await res.json()) as { success?: boolean; error?: string };
-        if (!res.ok || d.error) {
-          setInstallError(d.error ?? `HTTP ${res.status}`);
-          return;
-        }
-        setNewlyInstalledPkgs((prev) =>
-          new Set(prev).add(`${scope}:${pkg}`),
-        );
-        onInstalled();
-      } catch (e) {
-        setInstallError(String(e));
-      } finally {
-        setInstalling(null);
+  const marketInstall = useCallback(async (pkg: string) => {
+    setInstalling(pkg);
+    setInstallError(null);
+    try {
+      const res = await fetch("/api/skill-library/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "market", package: pkg }),
+      });
+      const d = (await res.json()) as { added?: { skillKey: string }[]; error?: string };
+      if (!res.ok || d.error) {
+        setInstallError(d.error ?? `HTTP ${res.status}`);
+        return;
       }
-    },
-    [onInstalled, scope, cwd],
-  );
+      onImported();
+    } catch (e) {
+      setInstallError(String(e));
+    } finally {
+      setInstalling(null);
+    }
+  }, [onImported]);
 
-  const installPath =
-    scope === "global"
-      ? "~/.pi/agent/skills/"
-      : `${shortenPath(cwd)}/.pi/skills/`;
+  const localImport = async () => {
+    if (!localPath.trim()) return;
+    setImportingLocal(true);
+    setInstallError(null);
+    try {
+      const res = await fetch("/api/skill-library/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "local", path: localPath.trim() }),
+      });
+      const d = (await res.json()) as { skill?: { skillKey: string }; error?: string };
+      if (!res.ok || d.error) {
+        setInstallError(d.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      setLocalPath("");
+      onImported();
+    } catch (e) {
+      setInstallError(String(e));
+    } finally {
+      setImportingLocal(false);
+    }
+  };
+
+  const gitImport = async () => {
+    if (!gitUrl.trim()) return;
+    setImportingGit(true);
+    setInstallError(null);
+    try {
+      const res = await fetch("/api/skill-library/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "git", url: gitUrl.trim() }),
+      });
+      const d = (await res.json()) as { imported?: { skillKey: string }[]; error?: string };
+      if (!res.ok || d.error) {
+        setInstallError(d.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      setGitUrl("");
+      onImported();
+    } catch (e) {
+      setInstallError(String(e));
+    } finally {
+      setImportingGit(false);
+    }
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* ── Header area ── */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
-          Add Skill
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>Add skills to library</div>
+      {installError && <div style={{ fontSize: 12, color: "#f87171" }}>{installError}</div>}
 
-        {/* Search row */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Market (skills.sh)</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             ref={inputRef}
@@ -468,203 +550,626 @@ function AddSkillPanel({
               color: "#fff",
               cursor: searching || !query.trim() ? "not-allowed" : "pointer",
               opacity: searching || !query.trim() ? 0.5 : 1,
-              flexShrink: 0,
             }}
           >
             {searching ? "Searching…" : "Search"}
           </button>
         </div>
-
-        {/* Scope + install path row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              display: "flex",
-              borderRadius: 5,
-              border: "1px solid var(--border)",
-              overflow: "hidden",
-              fontSize: 12,
-              flexShrink: 0,
-            }}
-          >
-            {(["global", "project"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setScope(s)}
-                style={{
-                  padding: "3px 10px",
-                  border: "none",
-                  cursor: "pointer",
-                  background: scope === s ? "var(--bg-selected)" : "none",
-                  color: scope === s ? "var(--text)" : "var(--text-dim)",
-                  fontWeight: scope === s ? 600 : 400,
-                  borderRight:
-                    s === "global" ? "1px solid var(--border)" : "none",
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--text-dim)",
-              fontFamily: "var(--font-mono)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            → {installPath}
-          </span>
-        </div>
-
-        {/* Errors */}
-        {searchError && (
-          <div style={{ fontSize: 12, color: "#f87171" }}>{searchError}</div>
-        )}
-        {installError && (
-          <div
-            style={{ fontSize: 12, color: "#f87171", wordBreak: "break-word" }}
-          >
-            {installError}
+        {searchError && <div style={{ fontSize: 12, color: "#f87171" }}>{searchError}</div>}
+        {results.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {results.map((r) => {
+              const isInstalling = installing === r.package;
+              const atIdx = r.package.indexOf("@");
+              const repopart = atIdx > -1 ? r.package.slice(0, atIdx) : r.package;
+              const skillpart = atIdx > -1 ? r.package.slice(atIdx + 1) : null;
+              return (
+                <div
+                  key={r.package}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-panel)",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{skillpart ?? repopart}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>{repopart}</div>
+                  </div>
+                  <button
+                    onClick={() => void marketInstall(r.package)}
+                    disabled={isInstalling || installing !== null}
+                    style={{
+                      padding: "5px 14px",
+                      fontSize: 12,
+                      borderRadius: 5,
+                      border: "1px solid var(--border)",
+                      background: "none",
+                      color: isInstalling ? "var(--accent)" : "var(--text-muted)",
+                      cursor: isInstalling || installing !== null ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {isInstalling ? "Installing…" : "Install to library"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* ── Results list ── */}
-      {results.length > 0 ? (
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          {results.map((r) => {
-            const isInstalled =
-              installedPackages[scope].has(r.package) ||
-              newlyInstalledPkgs.has(`${scope}:${r.package}`);
-            const isInstalling = installing === r.package;
-            // split "owner/repo@skill" for cleaner display
-            const atIdx = r.package.indexOf("@");
-            const repopart = atIdx > -1 ? r.package.slice(0, atIdx) : r.package;
-            const skillpart = atIdx > -1 ? r.package.slice(atIdx + 1) : null;
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Local directory</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={localPath}
+            onChange={(e) => setLocalPath(e.target.value)}
+            placeholder="/path/to/skill-directory containing SKILL.md"
+            style={{
+              flex: 1,
+              padding: "7px 10px",
+              fontSize: 13,
+              background: "var(--bg-panel)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              color: "var(--text)",
+              outline: "none",
+              fontFamily: "var(--font-mono)",
+            }}
+          />
+          <button
+            onClick={() => void localImport()}
+            disabled={importingLocal || !localPath.trim()}
+            style={{
+              padding: "7px 16px",
+              fontSize: 13,
+              borderRadius: 6,
+              border: "none",
+              background: "var(--accent)",
+              color: "#fff",
+              cursor: importingLocal || !localPath.trim() ? "not-allowed" : "pointer",
+              opacity: importingLocal || !localPath.trim() ? 0.5 : 1,
+            }}
+          >
+            {importingLocal ? "Importing…" : "Import"}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Git repository</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={gitUrl}
+            onChange={(e) => setGitUrl(e.target.value)}
+            placeholder="https://github.com/owner/repo.git"
+            style={{
+              flex: 1,
+              padding: "7px 10px",
+              fontSize: 13,
+              background: "var(--bg-panel)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              color: "var(--text)",
+              outline: "none",
+              fontFamily: "var(--font-mono)",
+            }}
+          />
+          <button
+            onClick={() => void gitImport()}
+            disabled={importingGit || !gitUrl.trim()}
+            style={{
+              padding: "7px 16px",
+              fontSize: 13,
+              borderRadius: 6,
+              border: "none",
+              background: "var(--accent)",
+              color: "#fff",
+              cursor: importingGit || !gitUrl.trim() ? "not-allowed" : "pointer",
+              opacity: importingGit || !gitUrl.trim() ? 0.5 : 1,
+            }}
+          >
+            {importingGit ? "Importing…" : "Import all"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkspacePacksBar({
+  cwd,
+  onApplied,
+  refreshKey,
+}: {
+  cwd: string;
+  onApplied: () => void;
+  refreshKey?: number;
+}) {
+  const [applied, setApplied] = useState<AppliedPackInfo[]>([]);
+  const [skipped, setSkipped] = useState<{ packId: string; skillKey: string; reason: string }[]>([]);
+  const [packs, setPacks] = useState<SkillPackInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [preview, setPreview] = useState<ApplyPreviewResponse | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const [wsRes, packsRes] = await Promise.all([
+        fetch(`/api/workspace-skill-packs?cwd=${encodeURIComponent(cwd)}`),
+        fetch("/api/skill-packs"),
+      ]);
+      const ws = (await wsRes.json()) as {
+        appliedPacks?: AppliedPackInfo[];
+        skippedConflicts?: { packId: string; skillKey: string; reason: string }[];
+        error?: string;
+      };
+      const p = (await packsRes.json()) as { packs?: SkillPackInfo[]; error?: string };
+      if (ws.error) throw new Error(ws.error);
+      if (p.error) throw new Error(p.error);
+      setApplied(ws.appliedPacks ?? []);
+      setSkipped(ws.skippedConflicts ?? []);
+      setPacks(p.packs ?? []);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [cwd]);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    void load().finally(() => setLoading(false));
+  }, [load, refreshKey]);
+
+  const removeTag = async (packId: string) => {
+    try {
+      const res = await fetch(`/api/workspace-skill-packs?cwd=${encodeURIComponent(cwd)}&packId=${encodeURIComponent(packId)}`, {
+        method: "DELETE",
+      });
+      const d = (await res.json()) as { error?: string };
+      if (d.error) throw new Error(d.error);
+      await load();
+      onApplied();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const runPreview = async (packIds: string[]) => {
+    const res = await fetch("/api/workspace-skill-packs/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cwd, packIds }),
+    });
+    const d = (await res.json()) as ApplyPreviewResponse & { error?: string };
+    if (d.error) throw new Error(d.error);
+    return d;
+  };
+
+  const runApply = async (packIds: string[], confirmedPlan: ApplyPreviewResponse) => {
+    const res = await fetch("/api/workspace-skill-packs/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cwd, plan: confirmedPlan }),
+    });
+    const d = (await res.json()) as { success?: boolean; error?: string };
+    if (d.error) throw new Error(d.error);
+  };
+
+  const unusedPacks = packs.filter((p) => !applied.some((a) => a.packId === p.id));
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Applied packs:</span>
+        {loading && <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Loading…</span>}
+        {applied.map((p) => {
+          const skippedHere = skipped.filter((s) => s.packId === p.packId);
+          return (
+            <span
+              key={p.packId}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "3px 8px",
+                borderRadius: 12,
+                fontSize: 12,
+                background: p.status === "partial" ? "rgba(217,119,6,0.12)" : "rgba(34,197,94,0.10)",
+                color: p.status === "partial" ? "#d97706" : "#16a34a",
+                border: `1px solid ${p.status === "partial" ? "rgba(217,119,6,0.3)" : "rgba(34,197,94,0.3)"}`,
+              }}
+              title={skippedHere.map((s) => `${s.skillKey} skipped`).join("\n")}
+            >
+              {p.packName || p.packId}
+              {p.status === "partial" && <span style={{ fontSize: 10, fontWeight: 600 }}>· 有跳过</span>}
+              <button
+                onClick={() => void removeTag(p.packId)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "inherit",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  padding: 0,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </span>
+          );
+        })}
+        {unusedPacks.length > 0 && (
+          <button
+            onClick={() => setPicking(true)}
+            style={{
+              padding: "3px 10px",
+              borderRadius: 12,
+              border: "1px dashed var(--border)",
+              background: "none",
+              color: "var(--text-muted)",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            + Apply pack
+          </button>
+        )}
+      </div>
+      {error && <div style={{ fontSize: 12, color: "#f87171", marginTop: 6 }}>{error}</div>}
+
+      {picking && (
+        <PackPicker
+          packs={unusedPacks}
+          onPreview={async (ids) => {
+            setError(null);
+            try {
+              const plan = await runPreview(ids);
+              setPreview(plan);
+            } catch (e) {
+              setError(String(e));
+              setPreview(null);
+            }
+          }}
+          onApply={async (ids) => {
+            setApplying(true);
+            setError(null);
+            try {
+              if (!preview?.canApply) throw new Error("No confirmed preview to apply");
+              await runApply(ids, preview);
+              await load();
+              onApplied();
+              setPicking(false);
+              setPreview(null);
+            } catch (e) {
+              setError(String(e));
+            } finally {
+              setApplying(false);
+            }
+          }}
+          onClose={() => {
+            setPicking(false);
+            setPreview(null);
+          }}
+          preview={preview}
+          applying={applying}
+        />
+      )}
+    </div>
+  );
+}
+
+function PackPicker({
+  packs,
+  onPreview,
+  onApply,
+  onClose,
+  preview,
+  applying,
+}: {
+  packs: SkillPackInfo[];
+  onPreview: (ids: string[]) => void;
+  onApply: (ids: string[]) => void;
+  onClose: () => void;
+  preview: ApplyPreviewResponse | null;
+  applying: boolean;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1100,
+        background: "rgba(0,0,0,0.85)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          width: 420,
+          maxWidth: "calc(100vw - 24px)",
+          maxHeight: "80vh",
+          background: "var(--bg)",
+          border: "1px solid var(--border)",
+          borderRadius: 10,
+          padding: 18,
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          overflow: "auto",
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>Apply Skill Packs</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {packs.map((p) => {
+            const checked = selected.has(p.id);
             return (
-              <div
-                key={r.package}
+              <label
+                key={p.id}
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 14,
-                  padding: "12px 0",
-                  borderBottom: "1px solid var(--border)",
+                  gap: 10,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  border: "1px solid var(--border)",
+                  cursor: "pointer",
+                  background: checked ? "var(--bg-selected)" : "var(--bg-panel)",
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* skill name prominent */}
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--text)",
-                      marginBottom: 3,
-                    }}
-                  >
-                    {skillpart ?? repopart}
-                  </div>
-                  {/* repo + installs + link row */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: 11,
-                        color: "var(--text-dim)",
-                      }}
-                    >
-                      {repopart}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {r.installs}
-                    </span>
-                    {r.url && (
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          fontSize: 12,
-                          color: "var(--accent)",
-                          textDecoration: "none",
-                        }}
-                      >
-                        skills.sh ↗
-                      </a>
-                    )}
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => {
+                    const next = new Set(selected);
+                    if (e.target.checked) next.add(p.id);
+                    else next.delete(p.id);
+                    setSelected(next);
+                  }}
+                />
+                <div>
+                  <div style={{ fontSize: 13, color: "var(--text)" }}>{p.name}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+                    {p.skillCount} skill{p.skillCount === 1 ? "" : "s"}
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    !isInstalled && !isInstalling && install(r.package)
-                  }
-                  disabled={isInstalled || isInstalling || installing !== null}
-                  style={{
-                    flexShrink: 0,
-                    padding: "5px 14px",
-                    fontSize: 12,
-                    fontWeight: 500,
-                    borderRadius: 5,
-                    border: "1px solid var(--border)",
-                    cursor:
-                      isInstalled || isInstalling || installing !== null
-                        ? "not-allowed"
-                        : "pointer",
-                    background: isInstalled ? "rgba(34,197,94,0.1)" : "none",
-                    color: isInstalled
-                      ? "#16a34a"
-                      : isInstalling
-                        ? "var(--accent)"
-                        : "var(--text-muted)",
-                    transition: "color 0.12s",
-                  }}
-                >
-                  {isInstalled
-                    ? "✓ Installed"
-                    : isInstalling
-                      ? "Installing…"
-                      : "Install"}
-                </button>
-              </div>
+              </label>
             );
           })}
         </div>
-      ) : (
-        !searchError &&
-        !searching && (
-          <div
-            style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.8 }}
-          >
-            Search{" "}
-            <a
-              href="https://skills.sh"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "var(--accent)", textDecoration: "none" }}
-            >
-              skills.sh
-            </a>{" "}
-            to discover and install skills for your agent.
+
+        {preview && (
+          <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: 6 }}>
+            {!preview.canApply && (
+              <div style={{ color: "#f87171" }}>
+                Cannot apply: {preview.blocked.length > 0 && `${preview.blocked.length} blocked`}{" "}
+                {preview.versionConflicts.length > 0 && `${preview.versionConflicts.length} version conflict(s)`}
+              </div>
+            )}
+            {preview.toInstall.length > 0 && <div>Will install: {preview.toInstall.map((i) => i.skillKey).join(", ")}</div>}
+            {preview.skipped.length > 0 && (
+              <div style={{ color: "#d97706" }}>
+                Will skip: {preview.skipped.map((s) => s.skillKey).join(", ")}
+              </div>
+            )}
           </div>
-        )
-      )}
+        )}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "6px 12px",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              background: "none",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onPreview(Array.from(selected))}
+            disabled={selected.size === 0}
+            style={{
+              padding: "6px 12px",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              background: "var(--bg-panel)",
+              color: "var(--text)",
+              cursor: selected.size === 0 ? "not-allowed" : "pointer",
+              opacity: selected.size === 0 ? 0.5 : 1,
+              fontSize: 13,
+            }}
+          >
+            Preview
+          </button>
+          <button
+            onClick={() => onApply(Array.from(selected))}
+            disabled={!preview?.canApply || applying}
+            style={{
+              padding: "6px 14px",
+              border: "none",
+              borderRadius: 6,
+              background: "var(--accent)",
+              color: "#fff",
+              cursor: !preview?.canApply || applying ? "not-allowed" : "pointer",
+              opacity: !preview?.canApply || applying ? 0.5 : 1,
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {applying ? "Applying…" : "Apply"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LibraryTab() {
+  const [libraryRoot, setLibraryRoot] = useState("");
+  const [configuredRoot, setConfiguredRoot] = useState<string | null>(null);
+  const [skills, setSkills] = useState<LibrarySkillInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/skill-library");
+      const d = (await res.json()) as { libraryRoot?: string | null; skills?: LibrarySkillInfo[]; error?: string };
+      if (d.error) throw new Error(d.error);
+      setConfiguredRoot(d.libraryRoot ?? null);
+      setLibraryRoot(d.libraryRoot ?? "");
+      setSkills(d.skills ?? []);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const saveRoot = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/skill-library", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ libraryRoot: libraryRoot.trim() }),
+      });
+      const d = (await res.json()) as { libraryRoot?: string; error?: string };
+      if (d.error) throw new Error(d.error);
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Skill library directory</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={libraryRoot}
+            onChange={(e) => setLibraryRoot(e.target.value)}
+            placeholder="/path/to/skill-library"
+            style={{
+              flex: 1,
+              padding: "7px 10px",
+              fontSize: 13,
+              background: "var(--bg-panel)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              color: "var(--text)",
+              outline: "none",
+              fontFamily: "var(--font-mono)",
+            }}
+          />
+          <button
+            onClick={() => void saveRoot()}
+            disabled={saving || !libraryRoot.trim()}
+            style={{
+              padding: "7px 14px",
+              border: "none",
+              borderRadius: 6,
+              background: "var(--accent)",
+              color: "#fff",
+              cursor: saving || !libraryRoot.trim() ? "not-allowed" : "pointer",
+              opacity: saving || !libraryRoot.trim() ? 0.5 : 1,
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {saving ? "Saving…" : "Set"}
+          </button>
+        </div>
+        {!configuredRoot && (
+          <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
+            Choose a local directory as your skill library. Skills will be copied from there into projects.
+          </div>
+        )}
+      </div>
+
+      {error && <div style={{ fontSize: 12, color: "#f87171" }}>{error}</div>}
+
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500, marginBottom: 8 }}>
+          Library skills ({skills.length})
+        </div>
+        {loading ? (
+          <div style={{ fontSize: 12, color: "var(--text-dim)" }}>Loading…</div>
+        ) : skills.length === 0 ? (
+          <div style={{ fontSize: 12, color: "var(--text-dim)" }}>No skills in the library yet.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+            {skills.map((s) => {
+              const isExpanded = expanded === s.skillKey;
+              return (
+                <div
+                  key={s.skillKey}
+                  style={{
+                    padding: 10,
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-panel)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{s.name}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+                    {s.skillKey} · {shortHash(s.contentHash)}
+                  </div>
+                  {isExpanded && s.description && (
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>{s.description}</div>
+                  )}
+                  <button
+                    onClick={() => setExpanded(isExpanded ? null : s.skillKey)}
+                    style={{
+                      alignSelf: "flex-start",
+                      fontSize: 10,
+                      color: "var(--accent)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    {isExpanded ? "Hide details" : "Details"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -672,11 +1177,16 @@ function AddSkillPanel({
 export function SkillsConfig({
   cwd,
   onClose,
+  onPacksChanged,
+  packsRefreshKey,
 }: {
   cwd: string;
   onClose: () => void;
+  onPacksChanged?: () => void;
+  packsRefreshKey?: number;
 }) {
   const isMobile = useIsMobile();
+  const [tab, setTab] = useState<"workspace" | "library" | "acquire">("workspace");
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -689,6 +1199,8 @@ export function SkillsConfig({
   const [checkingAll, setCheckingAll] = useState(false);
   const [updatingSkill, setUpdatingSkill] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [appliedPacks, setAppliedPacks] = useState<AppliedPackInfo[]>([]);
+  const [packDefinitions, setPackDefinitions] = useState<SkillPackDetail[]>([]);
 
   const loadSkills = useCallback(async () => {
     setLoading(true);
@@ -715,93 +1227,121 @@ export function SkillsConfig({
     void loadSkills();
   }, [cwd]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const checkForUpdates = useCallback(async (skill?: Skill) => {
-    const targets = skill
-      ? [skill]
-      : skills.filter((item) => Boolean(item.install));
-    const keys = targets
-      .map(updateKey)
-      .filter((key): key is string => Boolean(key));
-    if (keys.length === 0) return;
-
-    setUpdateError(null);
-    setCheckingUpdates((current) => new Set([...current, ...keys]));
-    if (!skill) setCheckingAll(true);
-    try {
-      const res = await fetch("/api/skills/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cwd,
-          package: skill?.install?.package,
-          scope: skill?.install?.scope,
-        }),
-      });
-      const data = (await res.json()) as {
-        updates?: SkillUpdateResult[];
-        error?: string;
-      };
-      if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setUpdateStatuses((current) => {
-        const next = { ...current };
-        for (const update of data.updates ?? []) {
-          next[`${update.scope}\0${update.package}`] = update;
-        }
-        return next;
-      });
-    } catch (e) {
-      setUpdateError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setCheckingUpdates((current) => {
-        const next = new Set(current);
-        for (const key of keys) next.delete(key);
-        return next;
-      });
-      if (!skill) setCheckingAll(false);
-    }
-  }, [cwd, skills]);
-
-  const updateInstalledSkill = useCallback(async (skill: Skill) => {
-    if (!skill.install) return;
-    const key = updateKey(skill)!;
-    setUpdatingSkill(key);
-    setUpdateError(null);
-    try {
-      const res = await fetch("/api/skills/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cwd,
-          package: skill.install.package,
-          scope: skill.install.scope,
-        }),
-      });
-      const data = (await res.json()) as {
-        success?: boolean;
-        skill?: Skill;
-        error?: string;
-      };
-      if (!res.ok || data.error || !data.success) {
-        throw new Error(data.error ?? `HTTP ${res.status}`);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [wsRes, packsRes] = await Promise.all([
+          fetch(`/api/workspace-skill-packs?cwd=${encodeURIComponent(cwd)}`),
+          fetch("/api/skill-packs"),
+        ]);
+        const ws = (await wsRes.json()) as { appliedPacks?: AppliedPackInfo[]; error?: string };
+        const p = (await packsRes.json()) as { packs?: SkillPackInfo[]; error?: string };
+        if (cancelled) return;
+        if (ws.error) console.error(ws.error);
+        if (p.error) console.error(p.error);
+        const applied = ws.appliedPacks ?? [];
+        const infos = p.packs ?? [];
+        const details = (await Promise.all(
+          applied.map((a) =>
+            fetch(`/api/skill-packs/${encodeURIComponent(a.packId)}`).then((r) => r.json() as Promise<SkillPackDetail>),
+          ),
+        )).filter((d): d is SkillPackDetail => Boolean(d?.id));
+        setAppliedPacks(applied);
+        setPackDefinitions(
+          infos.map((info) => {
+            const detail = details.find((d) => d.id === info.id);
+            return detail ?? { ...info, skills: [] };
+          }),
+        );
+      } catch (e) {
+        console.error(e);
       }
-      await loadSkills();
-      const versionHash = data.skill?.install?.versionHash;
-      setUpdateStatuses((current) => ({
-        ...current,
-        [key]: {
-          package: skill.install!.package,
-          scope: skill.install!.scope,
-          state: "up-to-date",
-          currentVersion: versionHash,
-          latestVersion: versionHash,
-        },
-      }));
-    } catch (e) {
-      setUpdateError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setUpdatingSkill(null);
-    }
-  }, [cwd, loadSkills]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cwd, packsRefreshKey]);
+
+  const checkForUpdates = useCallback(
+    async (skill?: Skill) => {
+      const targets = skill ? [skill] : skills.filter((item) => Boolean(item.install));
+      const keys = targets.map(updateKey).filter((key): key is string => Boolean(key));
+      if (keys.length === 0) return;
+      setUpdateError(null);
+      setCheckingUpdates((current) => new Set([...current, ...keys]));
+      if (!skill) setCheckingAll(true);
+      try {
+        const res = await fetch("/api/skills/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cwd,
+            package: skill?.install?.package,
+            scope: skill?.install?.scope,
+          }),
+        });
+        const data = (await res.json()) as { updates?: SkillUpdateResult[]; error?: string };
+        if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
+        setUpdateStatuses((current) => {
+          const next = { ...current };
+          for (const update of data.updates ?? []) {
+            next[`${update.scope}\0${update.package}`] = update;
+          }
+          return next;
+        });
+      } catch (e) {
+        setUpdateError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setCheckingUpdates((current) => {
+          const next = new Set(current);
+          for (const key of keys) next.delete(key);
+          return next;
+        });
+        if (!skill) setCheckingAll(false);
+      }
+    },
+    [cwd, skills],
+  );
+
+  const updateInstalledSkill = useCallback(
+    async (skill: Skill) => {
+      if (!skill.install) return;
+      const key = updateKey(skill)!;
+      setUpdatingSkill(key);
+      setUpdateError(null);
+      try {
+        const res = await fetch("/api/skills/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cwd,
+            package: skill.install.package,
+            scope: skill.install.scope,
+          }),
+        });
+        const data = (await res.json()) as { success?: boolean; skill?: Skill; error?: string };
+        if (!res.ok || data.error || !data.success) throw new Error(data.error ?? `HTTP ${res.status}`);
+        await loadSkills();
+        const versionHash = data.skill?.install?.versionHash;
+        setUpdateStatuses((current) => ({
+          ...current,
+          [key]: {
+            package: skill.install!.package,
+            scope: skill.install!.scope,
+            state: "up-to-date",
+            currentVersion: versionHash,
+            latestVersion: versionHash,
+          },
+        }));
+      } catch (e) {
+        setUpdateError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setUpdatingSkill(null);
+      }
+    },
+    [cwd, loadSkills],
+  );
 
   const toggle = useCallback(async (skill: Skill) => {
     const next = !skill.disableModelInvocation;
@@ -811,23 +1351,14 @@ export function SkillsConfig({
       const res = await fetch("/api/skills", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filePath: skill.filePath,
-          disableModelInvocation: next,
-        }),
+        body: JSON.stringify({ filePath: skill.filePath, disableModelInvocation: next }),
       });
       const d = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok || d.error) {
         setSaveError(d.error ?? `HTTP ${res.status}`);
         return;
       }
-      setSkills((prev) =>
-        prev.map((s) =>
-          s.filePath === skill.filePath
-            ? { ...s, disableModelInvocation: next }
-            : s,
-        ),
-      );
+      setSkills((prev) => prev.map((s) => (s.filePath === skill.filePath ? { ...s, disableModelInvocation: next } : s)));
     } catch (e) {
       setSaveError(String(e));
     } finally {
@@ -841,13 +1372,19 @@ export function SkillsConfig({
 
   const selectedSkill = skills.find((s) => s.filePath === selected) ?? null;
 
+  const tabs: { key: "workspace" | "library" | "acquire"; label: string }[] = [
+    { key: "workspace", label: "Workspace" },
+    { key: "library", label: "Library" },
+    { key: "acquire", label: "Acquire" },
+  ];
+
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 1000,
-        background: "rgba(0,0,0,0.35)",
+        background: "rgba(0,0,0,0.85)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -884,11 +1421,7 @@ export function SkillsConfig({
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <span
-              style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}
-            >
-              Skills
-            </span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Skills</span>
             <code
               style={{
                 fontSize: 11,
@@ -919,368 +1452,337 @@ export function SkillsConfig({
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row", overflow: "hidden" }}>
-          {/* Left: skill list */}
-          <div
-            style={{
-              width: isMobile ? "100%" : 210,
-              maxHeight: isMobile ? "40vh" : undefined,
-              borderRight: isMobile ? "none" : "1px solid var(--border)",
-              borderBottom: isMobile ? "1px solid var(--border)" : "none",
-              display: "flex",
-              flexDirection: "column",
-              flexShrink: 0,
-              background: "var(--bg-panel)",
-            }}
-          >
-            <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
-              {loading ? (
-                <div
-                  style={{
-                    padding: "10px 8px",
-                    fontSize: 12,
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  Loading…
-                </div>
-              ) : error ? (
-                <div
-                  style={{
-                    padding: "10px 8px",
-                    fontSize: 11,
-                    color: "#f87171",
-                  }}
-                >
-                  {error}
-                </div>
-              ) : skills.length === 0 ? (
-                <div
-                  style={{
-                    padding: "10px 8px",
-                    fontSize: 11,
-                    color: "var(--text-dim)",
-                  }}
-                >
-                  No skills found
-                </div>
-              ) : (
-                (() => {
-                  const groups: { label: string; skills: typeof skills }[] = [];
-                  const groupDefinitions = [
-                    {
-                      label: "project / skills.sh",
-                      matches: (skill: Skill) =>
-                        sourceLabel(skill) === "project" &&
-                        Boolean(skill.install?.skillsShUrl),
-                    },
-                    {
-                      label: "project",
-                      matches: (skill: Skill) =>
-                        sourceLabel(skill) === "project" &&
-                        !skill.install?.skillsShUrl,
-                    },
-                    {
-                      label: "global / skills.sh",
-                      matches: (skill: Skill) =>
-                        sourceLabel(skill) === "global" &&
-                        Boolean(skill.install?.skillsShUrl),
-                    },
-                    {
-                      label: "global",
-                      matches: (skill: Skill) =>
-                        sourceLabel(skill) === "global" &&
-                        !skill.install?.skillsShUrl,
-                    },
-                    {
-                      label: "path",
-                      matches: (skill: Skill) => sourceLabel(skill) === "path",
-                    },
-                  ];
-                  for (const { label, matches } of groupDefinitions) {
-                    const grpSkills = skills.filter(matches);
-                    if (grpSkills.length > 0)
-                      groups.push({ label, skills: grpSkills });
-                  }
-                  return groups.map(
-                    ({ label: grpLabel, skills: grpSkills }) => (
-                      <div key={grpLabel} style={{ marginBottom: 6 }}>
-                        <div
-                          style={{
-                            padding: "4px 8px 3px",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: "var(--text-dim)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
-                          }}
-                        >
-                          {grpLabel}
-                        </div>
-                        {grpSkills.map((skill) => {
-                          const isSelected =
-                            !addMode && selected === skill.filePath;
-                          const disabled = skill.disableModelInvocation;
-                          return (
-                            <div
-                              key={skill.filePath}
-                              onClick={() => {
-                                setSelected(skill.filePath);
-                                setAddMode(false);
-                              }}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 7,
-                                padding: "8px 8px",
-                                borderRadius: 5,
-                                cursor: "pointer",
-                                background: isSelected
-                                  ? "var(--bg-selected)"
-                                  : "none",
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!isSelected)
-                                  e.currentTarget.style.background =
-                                    "var(--bg-hover)";
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!isSelected)
-                                  e.currentTarget.style.background = "none";
-                              }}
-                            >
-                              <span
-                                style={{
-                                  flexShrink: 0,
-                                  width: 7,
-                                  height: 7,
-                                  borderRadius: "50%",
-                                  background: disabled
-                                    ? "var(--border)"
-                                    : "var(--accent)",
-                                  boxShadow: disabled
-                                    ? "none"
-                                    : "0 0 4px var(--accent)",
-                                  transition:
-                                    "background 0.15s, box-shadow 0.15s",
-                                }}
-                              />
-                              <span
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: isSelected ? 600 : 400,
-                                  color: disabled
-                                    ? "var(--text-dim)"
-                                    : "var(--text)",
-                                  fontFamily: "var(--font-mono)",
-                                  flex: 1,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {skill.name}
-                              </span>
-                              {(() => {
-                                const key = updateKey(skill);
-                                const status = key ? updateStatuses[key] : undefined;
-                                if (status?.state !== "update-available") return null;
-                                return (
-                                  <span
-                                    title="Update available"
-                                    style={{
-                                      color: "#d97706",
-                                      fontSize: 13,
-                                      lineHeight: 1,
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    ↑
-                                  </span>
-                                );
-                              })()}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ),
-                  );
-                })()
-              )}
-            </div>
-            {/* Add skill button */}
-            <div
-              style={{
-                padding: "8px 6px",
-                borderTop: "1px solid var(--border)",
-                flexShrink: 0,
-              }}
-            >
-              <div
-                onClick={() => setAddMode(true)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "7px 8px",
-                  borderRadius: 5,
-                  cursor: "pointer",
-                  background: addMode ? "var(--bg-selected)" : "none",
-                  color: addMode ? "var(--accent)" : "var(--text-dim)",
-                  fontSize: 12,
-                }}
-                onMouseEnter={(e) => {
-                  if (!addMode)
-                    e.currentTarget.style.background = "var(--bg-hover)";
-                }}
-                onMouseLeave={(e) => {
-                  if (!addMode) e.currentTarget.style.background = "none";
-                }}
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Add skill
-              </div>
-            </div>
-          </div>
-
-          {/* Right: detail or add panel */}
-          <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-            {addMode ? (
-              <AddSkillPanel
-                cwd={cwd}
-                installedPackages={{
-                  global: new Set(
-                    skills
-                      .filter((skill) => skill.install?.scope === "global")
-                      .map((skill) => skill.install!.package),
-                  ),
-                  project: new Set(
-                    skills
-                      .filter((skill) => skill.install?.scope === "project")
-                      .map((skill) => skill.install!.package),
-                  ),
-                }}
-                onInstalled={() => {
-                  void loadSkills();
-                }}
-              />
-            ) : loading ? null : selectedSkill ? (
-              <SkillDetail
-                key={selectedSkill.filePath}
-                skill={selectedSkill}
-                cwd={cwd}
-                onToggle={toggle}
-                toggling={toggling.has(selectedSkill.filePath)}
-                saveError={saveError}
-                updateStatus={
-                  updateKey(selectedSkill)
-                    ? updateStatuses[updateKey(selectedSkill)!]
-                    : undefined
-                }
-                checkingUpdate={
-                  updateKey(selectedSkill)
-                    ? checkingUpdates.has(updateKey(selectedSkill)!)
-                    : false
-                }
-                updating={updatingSkill === updateKey(selectedSkill)}
-                updateError={updateError}
-                onCheckUpdate={() => void checkForUpdates(selectedSkill)}
-                onUpdate={() => void updateInstalledSkill(selectedSkill)}
-              />
-            ) : (
-              <div
-                style={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--text-dim)",
-                  fontSize: 13,
-                }}
-              >
-                Select a skill
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
+        {/* Tabs */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "10px 18px",
-            borderTop: "1px solid var(--border)",
+            gap: 2,
+            padding: "8px 18px 0",
+            borderBottom: "1px solid var(--border)",
             flexShrink: 0,
+            background: "var(--bg-panel)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {skills.some((skill) => Boolean(skill.install)) && (
-              <button
-                onClick={() => void checkForUpdates()}
-                disabled={checkingAll || updatingSkill !== null}
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                padding: "8px 14px",
+                fontSize: 13,
+                border: "none",
+                borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
+                background: "none",
+                color: tab === t.key ? "var(--text)" : "var(--text-dim)",
+                cursor: "pointer",
+                fontWeight: tab === t.key ? 600 : 400,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+          {tab === "workspace" && (
+            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+              <div style={{ padding: "14px 18px 0", flexShrink: 0 }}>
+                <WorkspacePacksBar
+                  cwd={cwd}
+                  refreshKey={packsRefreshKey}
+                  onApplied={() => {
+                    void loadSkills();
+                    onPacksChanged?.();
+                  }}
+                />
+              </div>
+              <div
                 style={{
-                  padding: "6px 12px",
-                  background: "none",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
-                  color: "var(--text-muted)",
-                  cursor:
-                    checkingAll || updatingSkill !== null
-                      ? "not-allowed"
-                      : "pointer",
-                  opacity: checkingAll || updatingSkill !== null ? 0.5 : 1,
-                  fontSize: 12,
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  overflow: "hidden",
+                  padding: "0 18px 14px",
                 }}
               >
-                {checkingAll ? "Checking..." : "Check updates"}
-              </button>
-            )}
-            {Object.values(updateStatuses).filter(
-              (status) => status.state === "update-available",
-            ).length > 0 && (
-              <span style={{ fontSize: 12, color: "#d97706" }}>
-                {
-                  Object.values(updateStatuses).filter(
-                    (status) => status.state === "update-available",
-                  ).length
-                }{" "}
-                {Object.values(updateStatuses).filter(
-                  (status) => status.state === "update-available",
-                ).length === 1
-                  ? "update"
-                  : "updates"}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "6px 14px",
-              background: "none",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
-          >
-            Close
-          </button>
+                {/* Left: skill list */}
+                <div
+                  style={{
+                    width: isMobile ? "100%" : 210,
+                    maxHeight: isMobile ? "40vh" : undefined,
+                    borderRight: isMobile ? "none" : "1px solid var(--border)",
+                    borderBottom: isMobile ? "1px solid var(--border)" : "none",
+                    display: "flex",
+                    flexDirection: "column",
+                    flexShrink: 0,
+                    background: "var(--bg-panel)",
+                    borderRadius: 6,
+                    marginRight: isMobile ? 0 : 14,
+                    marginBottom: isMobile ? 14 : 0,
+                  }}
+                >
+                  <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
+                    {loading ? (
+                      <div style={{ padding: "10px 8px", fontSize: 12, color: "var(--text-muted)" }}>Loading…</div>
+                    ) : error ? (
+                      <div style={{ padding: "10px 8px", fontSize: 11, color: "#f87171" }}>{error}</div>
+                    ) : skills.length === 0 ? (
+                      <div style={{ padding: "10px 8px", fontSize: 11, color: "var(--text-dim)" }}>No skills found</div>
+                    ) : (
+                      (() => {
+                        const groups: { label: string; skills: typeof skills }[] = [];
+                        const used = new Set<string>();
+
+                        // One section per applied pack, showing the skills it brought.
+                        for (const applied of appliedPacks) {
+                          const def = packDefinitions.find((p) => p.id === applied.packId);
+                          const packKeys = new Set((def?.skills ?? []).map((s) => s.skillKey.toLowerCase()));
+                          const grpSkills = skills.filter((s) => {
+                            const key = skillKeyFromSkill(s).toLowerCase();
+                            return packKeys.has(key) && !used.has(s.filePath);
+                          });
+                          grpSkills.forEach((s) => used.add(s.filePath));
+                          if (grpSkills.length > 0) {
+                            groups.push({ label: def?.name ?? applied.packName ?? applied.packId, skills: grpSkills });
+                          }
+                        }
+
+                        const groupDefinitions = [
+                          { label: "project / skills.sh", matches: (skill: Skill) => sourceLabel(skill) === "project" && Boolean(skill.install?.skillsShUrl) },
+                          { label: "project", matches: (skill: Skill) => sourceLabel(skill) === "project" && !skill.install?.skillsShUrl },
+                          { label: "global / skills.sh", matches: (skill: Skill) => sourceLabel(skill) === "global" && Boolean(skill.install?.skillsShUrl) },
+                          { label: "global", matches: (skill: Skill) => sourceLabel(skill) === "global" && !skill.install?.skillsShUrl },
+                          { label: "path", matches: (skill: Skill) => sourceLabel(skill) === "path" },
+                        ];
+                        for (const { label, matches } of groupDefinitions) {
+                          const grpSkills = skills.filter((s) => matches(s) && !used.has(s.filePath));
+                          grpSkills.forEach((s) => used.add(s.filePath));
+                          if (grpSkills.length > 0) groups.push({ label, skills: grpSkills });
+                        }
+                        return groups.map(({ label: grpLabel, skills: grpSkills }) => (
+                          <div key={grpLabel} style={{ marginBottom: 6 }}>
+                            <div
+                              style={{
+                                padding: "4px 8px 3px",
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: "var(--text-dim)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                              }}
+                            >
+                              {grpLabel}
+                            </div>
+                            {grpSkills.map((skill) => {
+                              const isSelected = !addMode && selected === skill.filePath;
+                              const disabled = skill.disableModelInvocation;
+                              return (
+                                <div
+                                  key={skill.filePath}
+                                  onClick={() => {
+                                    setSelected(skill.filePath);
+                                    setAddMode(false);
+                                  }}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 7,
+                                    padding: "8px 8px",
+                                    borderRadius: 5,
+                                    cursor: "pointer",
+                                    background: isSelected ? "var(--bg-selected)" : "none",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isSelected) e.currentTarget.style.background = "var(--bg-hover)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isSelected) e.currentTarget.style.background = "none";
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      flexShrink: 0,
+                                      width: 7,
+                                      height: 7,
+                                      borderRadius: "50%",
+                                      background: disabled ? "var(--border)" : "var(--accent)",
+                                      boxShadow: disabled ? "none" : "0 0 4px var(--accent)",
+                                      transition: "background 0.15s, box-shadow 0.15s",
+                                    }}
+                                  />
+                                  <span
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: isSelected ? 600 : 400,
+                                      color: disabled ? "var(--text-dim)" : "var(--text)",
+                                      fontFamily: "var(--font-mono)",
+                                      flex: 1,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {skill.name}
+                                  </span>
+                                  {(() => {
+                                    const key = updateKey(skill);
+                                    const status = key ? updateStatuses[key] : undefined;
+                                    if (status?.state !== "update-available") return null;
+                                    return (
+                                      <span
+                                        title="Update available"
+                                        style={{ color: "#d97706", fontSize: 13, lineHeight: 1, flexShrink: 0 }}
+                                      >
+                                        ↑
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ));
+                      })()
+                    )}
+                  </div>
+                  <div style={{ padding: "8px 6px", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
+                    <div
+                      onClick={() => {
+                        setAddMode(true);
+                        setSelected(null);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "7px 8px",
+                        borderRadius: 5,
+                        cursor: "pointer",
+                        background: "none",
+                        color: "var(--text-dim)",
+                        fontSize: 12,
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      Add skill
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: detail */}
+                <div style={{ flex: 1, overflowY: "auto", padding: "0 0 0 4px" }}>
+                  {loading ? null : addMode ? (
+                    <LibrarySkillPicker
+                      cwd={cwd}
+                      onInstalled={() => {
+                        setAddMode(false);
+                        void loadSkills();
+                      }}
+                    />
+                  ) : selectedSkill ? (
+                    <SkillDetail
+                      key={selectedSkill.filePath}
+                      skill={selectedSkill}
+                      cwd={cwd}
+                      onToggle={toggle}
+                      toggling={toggling.has(selectedSkill.filePath)}
+                      saveError={saveError}
+                      updateStatus={updateKey(selectedSkill) ? updateStatuses[updateKey(selectedSkill)!] : undefined}
+                      checkingUpdate={updateKey(selectedSkill) ? checkingUpdates.has(updateKey(selectedSkill)!) : false}
+                      updating={updatingSkill === updateKey(selectedSkill)}
+                      updateError={updateError}
+                      onCheckUpdate={() => void checkForUpdates(selectedSkill)}
+                      onUpdate={() => void updateInstalledSkill(selectedSkill)}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--text-dim)",
+                        fontSize: 13,
+                      }}
+                    >
+                      Select a skill
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 18px",
+                  borderTop: "1px solid var(--border)",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {skills.some((skill) => Boolean(skill.install)) && (
+                    <button
+                      onClick={() => void checkForUpdates()}
+                      disabled={checkingAll || updatingSkill !== null}
+                      style={{
+                        padding: "6px 12px",
+                        background: "none",
+                        border: "1px solid var(--border)",
+                        borderRadius: 6,
+                        color: "var(--text-muted)",
+                        cursor: checkingAll || updatingSkill !== null ? "not-allowed" : "pointer",
+                        opacity: checkingAll || updatingSkill !== null ? 0.5 : 1,
+                        fontSize: 12,
+                      }}
+                    >
+                      {checkingAll ? "Checking..." : "Check updates"}
+                    </button>
+                  )}
+                  {Object.values(updateStatuses).filter((status) => status.state === "update-available").length > 0 && (
+                    <span style={{ fontSize: 12, color: "#d97706" }}>
+                      {Object.values(updateStatuses).filter((status) => status.state === "update-available").length}{" "}
+                      {Object.values(updateStatuses).filter((status) => status.state === "update-available").length === 1 ? "update" : "updates"}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={onClose}
+                  style={{
+                    padding: "6px 14px",
+                    background: "none",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    fontSize: 13,
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          {tab === "library" && (
+            <div style={{ height: "100%", padding: 18, overflow: "auto" }}>
+              <LibraryTab />
+            </div>
+          )}
+
+          {tab === "acquire" && (
+            <div style={{ height: "100%", padding: 18, overflow: "auto" }}>
+              <LibraryImportPanel onImported={() => void loadSkills()} />
+            </div>
+          )}
         </div>
       </div>
     </div>

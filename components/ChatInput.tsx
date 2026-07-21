@@ -10,6 +10,7 @@ import {
 import { FolderIcon, getFileIcon } from "./FileIcons";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { WorktreeSwitcher } from "./WorktreeSwitcher";
+import type { AppliedPackInfo, SkillPackInfo } from "@/lib/api-types";
 
 export interface AttachedImage {
   data: string;   // base64, no prefix
@@ -61,6 +62,8 @@ interface Props {
   cwd?: string | null;
   /** Starts a new chat in the selected worktree. */
   onCwdChange?: (cwd: string, projectRoot: string) => void;
+  onOpenSkills?: () => void;
+  packsRefreshKey?: number;
 }
 
 export interface ChatInputHandle {
@@ -202,6 +205,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   draftKey,
   cwd,
   onCwdChange,
+  onOpenSkills,
+  packsRefreshKey,
 }: Props, ref) {
   const isMobile = useIsMobile();
   const [value, setValue] = useState(() => (draftKey ? getDraft(draftKey)?.value ?? "" : ""));
@@ -221,6 +226,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   const [fileIndex, setFileIndex] = useState<{ cwd: string; entries: FileIndexEntry[]; truncated: boolean } | null>(null);
   const [fileIndexLoading, setFileIndexLoading] = useState(false);
   const [atServerResult, setAtServerResult] = useState<{ cwd: string; query: string; matches: FileIndexEntry[] } | null>(null);
+  const [appliedPacks, setAppliedPacks] = useState<AppliedPackInfo[]>([]);
+  const [packsError, setPacksError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -358,6 +365,30 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
       images: attachedImages.map(imageToDraftImage),
     });
   }, [attachedImages, draftKey, value]);
+
+  // Fetch applied packs for the current cwd to show pack tags in the input bar.
+  useEffect(() => {
+    if (!cwd) {
+      setAppliedPacks([]);
+      setPacksError(null);
+      return;
+    }
+    let cancelled = false;
+    setPacksError(null);
+    fetch(`/api/workspace-skill-packs?cwd=${encodeURIComponent(cwd)}`)
+      .then((res) => res.json() as Promise<{ appliedPacks?: AppliedPackInfo[]; error?: string }>)
+      .then((data) => {
+        if (cancelled) return;
+        if (data.error) setPacksError(data.error);
+        else setAppliedPacks(data.appliedPacks ?? []);
+      })
+      .catch((e) => {
+        if (!cancelled) setPacksError(String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cwd, packsRefreshKey]);
 
   useEffect(() => {
     const previousDraftKey = draftKeyRef.current;
@@ -1432,6 +1463,62 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 <polyline points="21 15 16 10 5 21" />
               </svg>
             </button>
+
+            {/* Pack tags */}
+            {cwd && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 4, flexWrap: "wrap", minWidth: 0 }}>
+                {appliedPacks.length === 0 && onOpenSkills && (
+                  <button
+                    onClick={onOpenSkills}
+                    title="Apply skill packs"
+                    style={{
+                      flexShrink: 0,
+                      padding: "3px 10px",
+                      borderRadius: 12,
+                      border: "1px dashed var(--border)",
+                      background: "none",
+                      color: "var(--text-muted)",
+                      fontSize: 11,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
+                    </svg>
+                    Add Pack
+                  </button>
+                )}
+                {appliedPacks.map((p) => (
+                  <button
+                    key={p.packId}
+                    onClick={onOpenSkills}
+                    title={p.status === "partial" ? "Some skills were skipped" : "Applied pack"}
+                    style={{
+                      flexShrink: 0,
+                      padding: "3px 10px",
+                      borderRadius: 12,
+                      border: "1px solid var(--border)",
+                      background: p.status === "partial" ? "rgba(217,119,6,0.10)" : "rgba(34,197,94,0.08)",
+                      color: p.status === "partial" ? "#d97706" : "#16a34a",
+                      fontSize: 11,
+                      cursor: onOpenSkills ? "pointer" : "default",
+                      maxWidth: 140,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {p.packName || p.packId}
+                    {p.status === "partial" && <span style={{ marginLeft: 4 }}>· 有跳过</span>}
+                  </button>
+                ))}
+                {packsError && <span style={{ fontSize: 11, color: "#f87171" }}>{packsError}</span>}
+              </div>
+            )}
+
             {/* Model selector — visible always, disabled during streaming */}
             {modelOptions.length > 0 && currentName && onModelChange && (
                 <div ref={dropdownRef} style={{ position: "relative", flex: isMobile ? "1 1 auto" : undefined, minWidth: 0 }}>

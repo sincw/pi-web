@@ -6,6 +6,7 @@ import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import { ModelsConfig } from "./ModelsConfig";
 import { SkillsConfig } from "./SkillsConfig";
+import { SkillPacksModal } from "./SkillPacksModal";
 import { PluginsConfig } from "./PluginsConfig";
 import { BranchNavigator } from "./BranchNavigator";
 import { RightPanel } from "./right-panel/RightPanel";
@@ -35,6 +36,8 @@ export function AppShell() {
   const [modelsConfigOpen, setModelsConfigOpen] = useState(false);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
   const [skillsConfigOpen, setSkillsConfigOpen] = useState(false);
+  const [packsConfigOpen, setPacksConfigOpen] = useState(false);
+  const [packsRefreshKey, setPacksRefreshKey] = useState(0);
   const [pluginsConfigOpen, setPluginsConfigOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
@@ -318,6 +321,10 @@ export function AppShell() {
         showExplorer={false}
         onOpenSkills={() => {
           setSkillsConfigOpen(true);
+          if (isMobile) setSidebarOpen(false);
+        }}
+        onOpenPacks={() => {
+          setPacksConfigOpen(true);
           if (isMobile) setSidebarOpen(false);
         }}
         onOpenPlugins={() => {
@@ -919,6 +926,8 @@ export function AppShell() {
               onContextUsageChange={handleContextUsageChange}
               onOpenFile={handleOpenLinkedFile}
               onCwdChange={handleWorktreeChange}
+              onOpenSkills={() => setSkillsConfigOpen(true)}
+              packsRefreshKey={packsRefreshKey}
             />
           ) : showPlaceholder ? (
             activeCwd ? (
@@ -956,7 +965,15 @@ export function AppShell() {
     </div>
     {modelsConfigOpen && <ModelsConfig onClose={() => { setModelsConfigOpen(false); setModelsRefreshKey((k) => k + 1); }} />}
     {skillsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
-      <SkillsConfig cwd={(activeCwd ?? selectedSession?.cwd ?? newSessionCwd)!} onClose={() => setSkillsConfigOpen(false)} />
+      <SkillsConfig
+        cwd={(activeCwd ?? selectedSession?.cwd ?? newSessionCwd)!}
+        onClose={() => setSkillsConfigOpen(false)}
+        onPacksChanged={() => setPacksRefreshKey((k) => k + 1)}
+        packsRefreshKey={packsRefreshKey}
+      />
+    )}
+    {packsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
+      <SkillPacksModal onClose={() => setPacksConfigOpen(false)} />
     )}
     {pluginsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
       <PluginsConfig

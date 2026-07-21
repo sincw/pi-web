@@ -46,6 +46,97 @@ export interface SkillInfo {
   install?: SkillInstallInfo;
 }
 
+// --- Skill Pack / Skill Library types ---
+
+export interface LibrarySkillInfo {
+  skillKey: string;
+  name: string;
+  description: string;
+  baseDir: string;
+  filePath: string;
+  contentHash: string;
+}
+
+export interface SkillPackInfo {
+  id: string;
+  name: string;
+  description: string;
+  skillCount: number;
+}
+
+export interface SkillPackDetail {
+  id: string;
+  name: string;
+  description: string;
+  skills: LibrarySkillInfo[];
+}
+
+export interface SkillLibraryResponse {
+  libraryRoot: string | null;
+  skills: LibrarySkillInfo[];
+}
+
+export type PackStatus = "full" | "partial";
+
+export interface AppliedPackInfo {
+  packId: string;
+  packName?: string;
+  status: PackStatus;
+  receipt: {
+    appliedAt: string;
+    installed: { skillKey: string; contentHash: string }[];
+  };
+}
+
+export interface SkippedConflictInfo {
+  packId: string;
+  skillKey: string;
+  reason: string;
+}
+
+export interface WorkspaceSkillPacksResponse {
+  appliedPacks: AppliedPackInfo[];
+  skippedConflicts: SkippedConflictInfo[];
+}
+
+export interface ApplyPreviewEntry {
+  skillKey: string;
+  contentHash: string;
+}
+
+export interface SkippedPreviewEntry {
+  skillKey: string;
+  reason: string;
+}
+
+export interface BlockedPreviewEntry {
+  skillKey: string;
+  reason: string;
+}
+
+export interface VersionConflictInfo {
+  skillKey: string;
+  contentHashes: string[];
+  packIds: string[];
+}
+
+export interface PackPlanInfo {
+  packId: string;
+  packName: string;
+  status: PackStatus;
+  toInstall: ApplyPreviewEntry[];
+  skipped: SkippedPreviewEntry[];
+}
+
+export interface ApplyPreviewResponse {
+  canApply: boolean;
+  toInstall: ApplyPreviewEntry[];
+  skipped: SkippedPreviewEntry[];
+  blocked: BlockedPreviewEntry[];
+  versionConflicts: VersionConflictInfo[];
+  packs: PackPlanInfo[];
+}
+
 export type PluginScope = "global" | "project";
 export type PluginResourceKind = "extension" | "skill" | "prompt" | "theme";
 
