@@ -576,6 +576,8 @@ span.linenumber {
 
 /* Workspace chrome: restrained macOS-inspired frosted surfaces. */
 .workspace-shell {
+  position: fixed;
+  inset: 0;
   gap: 10px;
   padding: 10px;
   background: var(--app-canvas) !important;
