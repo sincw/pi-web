@@ -27,7 +27,9 @@ function loadPanelState(cwd: string): SavedPanelState | null {
     const saved = JSON.parse(window.localStorage.getItem(`pi-right-panel:${cwd}`) ?? "null") as Partial<SavedPanelState> | null;
     if (!saved || !Array.isArray(saved.fileTabs) || !Array.isArray(saved.toolTabs)) return null;
     const fileTabs = saved.fileTabs.filter((tab): tab is FilePanelTab => Boolean(tab && tab.type === "file" && typeof tab.id === "string" && typeof tab.label === "string" && typeof tab.filePath === "string" && typeof tab.workspaceCwd === "string"));
-    const toolTabs = saved.toolTabs.filter((tab): tab is ToolPanelTab => Boolean(tab && tab.type === "tool" && typeof tab.id === "string" && typeof tab.toolId === "string" && typeof tab.cwd === "string" && getRightPanelTool(tab.toolId)));
+    // PTYs are restored from the server registry. Keeping them here could recreate
+    // one after the server has been restarted and the original process is gone.
+    const toolTabs = saved.toolTabs.filter((tab): tab is ToolPanelTab => Boolean(tab && tab.type === "tool" && tab.toolId !== "terminal" && typeof tab.id === "string" && typeof tab.toolId === "string" && typeof tab.cwd === "string" && (tab.label === undefined || typeof tab.label === "string") && getRightPanelTool(tab.toolId)));
     const tabs = [...toolTabs, ...fileTabs];
     const activeTabId = typeof saved.activeTabId === "string" && tabs.some((tab) => tab.id === saved.activeTabId) ? saved.activeTabId : (tabs.length > 0 ? tabs[tabs.length - 1].id : null);
     return { fileTabs, toolTabs, activeTabId, panelOpen: saved.panelOpen === true };
@@ -138,7 +140,7 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
     const project = workspaceProjectRoot ?? workspaceCwd;
     if (projectRef.current === project) {
       setFileTabs((previous) => previous.map((tab) => ({ ...tab, workspaceCwd })));
-      setToolTabs((previous) => previous.map((tab) => ({ ...tab, cwd: workspaceCwd })));
+      setToolTabs((previous) => previous.map((tab) => getRightPanelTool(tab.toolId)?.preserveCwdOnWorkspaceChange ? tab : { ...tab, cwd: workspaceCwd }));
       setMenuOpen(false);
       setFileTreeRevealRequest(null);
       return;
@@ -163,6 +165,33 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
       // Storage can be unavailable in private browsing; tabs still work for this page.
     }
   }, [activeTabId, fileTabs, panelOpen, restoredProject, toolTabs, workspaceCwd, workspaceProjectRoot]);
+
+  useEffect(() => {
+    const project = workspaceProjectRoot ?? workspaceCwd;
+    if (!project) return;
+    let cancelled = false;
+    void fetch(`/api/terminal?projectRoot=${encodeURIComponent(project)}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not restore terminals");
+        return response.json() as Promise<{ terminals?: Array<{ id: string; cwd: string; title: string }> }>;
+      })
+      .then(({ terminals = [] }) => {
+        if (cancelled || projectRef.current !== project) return;
+        setToolTabs((previous) => {
+          const known = new Set(previous.map((tab) => tab.id));
+          const restored = terminals
+            .filter((terminal) => !known.has(terminal.id))
+            .map((terminal) => ({ id: terminal.id, type: "tool" as const, toolId: "terminal", cwd: terminal.cwd, label: terminal.title }));
+          return restored.length > 0 ? [...previous, ...restored] : previous;
+        });
+        if (terminals.length > 0) {
+          setActiveTabId((current) => current ?? terminals[0].id);
+          setPanelOpen(true);
+        }
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [workspaceCwd, workspaceProjectRoot]);
 
   const openPanel = useCallback(() => {
     setPanelOpen(true);
@@ -189,11 +218,21 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
   useImperativeHandle(ref, () => ({ openFile }), [openFile]);
 
   const openTool = useCallback((toolId: string) => {
-    if (!workspaceCwd || !getRightPanelTool(toolId)) return;
-    const id = `tool:${toolId}`;
+    if (!workspaceCwd) return;
+    const tool = getRightPanelTool(toolId);
+    if (!tool) return;
+    const id = tool.allowMultipleTabs
+      ? `tool:${toolId}:${typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`}`
+      : `tool:${toolId}`;
     setToolTabs((previous) => previous.some((tab) => tab.id === id)
       ? previous
-      : [...previous, { id, type: "tool", toolId, cwd: workspaceCwd }]);
+      : [...previous, {
+        id,
+        type: "tool",
+        toolId,
+        cwd: workspaceCwd,
+        ...(tool.allowMultipleTabs ? { label: `${tool.label} ${previous.filter((tab) => tab.toolId === toolId).length + 1}` } : {}),
+      }]);
     setActiveTabId(id);
     setMenuOpen(false);
     openPanel();
@@ -207,7 +246,8 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
 
   const closeTab = useCallback((tabId: string) => {
     if (tabId.startsWith("tool:")) {
-      setToolTabs((previous) => {
+      const tab = toolTabs.find((candidate) => candidate.id === tabId);
+      const removeToolTab = () => setToolTabs((previous) => {
         const next = previous.filter((tab) => tab.id !== tabId);
         if (activeTabId === tabId) {
           const remaining = [...next, ...fileTabs];
@@ -215,6 +255,14 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
         }
         return next;
       });
+      const close = tab && getRightPanelTool(tab.toolId)?.onCloseTab;
+      if (tab && close) {
+        void Promise.resolve(close(tab)).then((closed) => {
+          if (closed) removeToolTab();
+        }).catch(() => undefined);
+      } else {
+        removeToolTab();
+      }
       return;
     }
 
@@ -241,7 +289,7 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
     const tool = getRightPanelTool(tab.toolId);
     if (!tool) return [];
     const Icon = tool.Icon;
-    return [{ id: tab.id, label: tool.label, filePath: tab.cwd, icon: <Icon size={14} /> }];
+    return [{ id: tab.id, label: tab.label ?? tool.label, filePath: tab.cwd, icon: <Icon size={14} /> }];
   });
   const activeToolTab = toolTabs.find((tab) => tab.id === activeTabId) ?? null;
   const activeTool = activeToolTab ? getRightPanelTool(activeToolTab.toolId) : null;
@@ -295,7 +343,10 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
           {activeToolTab && ActiveToolComponent ? (
             <div className="right-panel-tool-content">
               <ActiveToolComponent
+                tabId={activeToolTab.id}
+                tabLabel={activeToolTab.label ?? activeTool.label}
                 cwd={activeToolTab.cwd}
+                projectRoot={workspaceProjectRoot ?? activeToolTab.cwd}
                 sourceSessionId={sourceSessionId}
                 explorerRefreshKey={explorerRefreshKey}
                 fileTreeRevealRequest={fileTreeRevealRequest}
