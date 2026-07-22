@@ -55,6 +55,8 @@ app/api/
   cwd/validate/route.ts           POST validate/select a cwd
   default-cwd/route.ts            POST create ~/pi-cwd-YYYYMMDD
   files/[...path]/route.ts        GET file contents for viewer
+  git/route.ts                    GET repository/branch/remote data; POST Git working-tree actions
+  git-history/route.ts            GET commit list, commit files, and one-file before/after content
   home/route.ts                   GET user home directory
   models/route.ts                 GET { models, modelList, defaultModel }
   models-config/route.ts          GET/PUT — read/write ~/.pi/agent/models.json
@@ -78,12 +80,16 @@ app/api/
   mcp/servers/route.ts            GET workspace MCP servers
   mcp/status/route.ts             GET MCP adapter readiness
   worktrees/route.ts              GET/POST/DELETE git worktrees
+  workspace-files/route.ts        POST workspace-scoped create/rename/delete operations
 
 lib/
   agent-client.ts      typed fetch helper for /api/agent commands
   draft-store.ts       local draft persistence helpers
   file-access.ts       allowed file roots for /api/files and worktrees
   file-paths.ts        client/server path encoding helpers
+  git-branches.ts      parse local/remote refs for the chat worktree switcher
+  git-diff-parse.ts    parse Git status/name-status/numstat into changed-file records
+  git-graph.ts         calculate lane graph rows for commit history
   markdown.ts          shared markdown helpers
   npx.ts               npx runner used by skill install
   content-hash.ts       deterministic hash for a library skill directory
@@ -97,6 +103,7 @@ lib/
   skill-packs-store.ts global skill-pack config and pack CRUD
   skill-pack-apply.ts  preview, atomic apply/rollback, and unapply
   tool-presets.ts     PRESET_NONE/DEFAULT/FULL + getPresetFromTools()
+  text-diff.ts        line diff and A/B row pairing for review diffs
   types.ts            shared TypeScript types
   normalize.ts        normalizeToolCalls() — field name mismatch between file format and our types
   workspace-packs.ts   workspace pack state and dependency calculation
@@ -117,6 +124,7 @@ components/
   McpConfig.tsx       modal for workspace, library, and editable MCP definitions
   SkillPacksModal.tsx global skill-pack definition management
   WorkspaceFileTree.tsx reusable project file tree
+  InlineDiff.tsx      unified and side-by-side review diff renderers
   FileIcons.tsx       file icon helpers
   FileViewer.tsx      file content preview
   TabBar.tsx          generic closable tab row
@@ -185,9 +193,17 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - Sessions whose cwd points at a removed worktree are inferred back into the main project instead of becoming a phantom project row.
 
 ### Right-panel tools
-- `RightPanel` owns its tool and file tabs. When its `workspaceCwd` changes, it clears every right-panel tab and returns to the launcher while leaving the panel open.
+- `RightPanel` owns its tool and file tabs. It persists `{ fileTabs, toolTabs, activeTabId, panelOpen }` in `localStorage` under `pi-right-panel:<projectRoot>`; changing worktrees in the same project updates tab cwd values, while changing projects restores that project's saved tabs.
 - Add a same-level tool by creating one `right-panel/*Tool.tsx` feature definition (`id`, label, description, icon, component) and adding it to `right-panel/tool-registry.ts`. The registry drives the launcher, creation menu, and tool-tab icon; do not add tool-specific branches or unions to `AppShell` or `TabBar`.
-- File previews are core tabs, not registered tools. `AppShell` opens chat-linked files through `RightPanelHandle`; tool components receive file/diff callbacks through `RightPanelToolProps`.
+- File previews are core tabs, not registered tools. `AppShell` opens chat-linked files through `RightPanelHandle`; tool components receive file and reveal callbacks through `RightPanelToolProps`.
+- `right-panel-fullscreen` is application-local CSS (`fixed; inset: 0`), not browser fullscreen; the toolbar button toggles it and `Escape` exits. In fullscreen, review lists cap at 300px; Changes and History share the same non-fullscreen list width.
+
+### Git review and workspace files
+- `ReviewTool` owns Changes, branch comparison, and History. It fetches file status/diffs from `/api/git-diff`, commit summaries and one-file commit content from `/api/git-history`, and Git actions/branch data from `/api/git`.
+- History's left side contains only the commit graph and subject. Selecting a commit loads its files, then selecting one file renders that file's parent-to-commit diff. Keep unified mode as the default; `InlineDiff` also supplies A/B mode.
+- A/B diffs are two equal-width panes with a 160px minimum. Each pane owns horizontal overflow; do not reintroduce one shared, full-width horizontal scrollbar.
+- `WorkspaceFileTree` is shared by the sidebar and File Tree tool. It supports optional mutations via `/api/workspace-files`; `revealRequest` must expand each path ancestor before selecting the file. `loadDirectory()` updates `nodesRef` when the request resolves so deep reveal traversal does not use stale tree data.
+- `/api/files` remains read-only. Its `hideHidden=1` query parameter lets the workspace tree omit dotfiles; write operations belong only in `/api/workspace-files` and must remain workspace-root and symlink constrained.
 
 ### File access allow-list
 - `/api/files` is intentionally not a general filesystem browser. Allowed roots come from session cwds, their resolved project roots, `~/pi-cwd-*`, and roots explicitly added with `allowFileRoot()`.
