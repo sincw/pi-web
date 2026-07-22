@@ -27,6 +27,7 @@ interface Props {
   onAtMention?: (relativePath: string, isDir: boolean) => void;
   showExplorer?: boolean;
   onOpenSkills?: () => void;
+  onOpenMcp?: () => void;
   onOpenPlugins?: () => void;
   onOpenPacks?: () => void;
   onClose?: () => void;
@@ -327,7 +328,7 @@ function SidebarNavigationAction({ label, disabled, onClick, children }: { label
   );
 }
 
-export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, explorerRefreshKey, onAtMention, showExplorer = true, onOpenSkills, onOpenPlugins, onOpenPacks, onClose }: Props) {
+export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, explorerRefreshKey, onAtMention, showExplorer = true, onOpenSkills, onOpenMcp, onOpenPlugins, onOpenPacks, onClose }: Props) {
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -697,6 +698,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           <SidebarNavigationAction label="Skills" disabled={!selectedCwd || !onOpenSkills} onClick={() => onOpenSkills?.()}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="9" r="5.5" /><path d="m13 13 6.2 6.2" /><path d="M5.2 13.1 3 15.3" />
+            </svg>
+          </SidebarNavigationAction>
+          <SidebarNavigationAction label="MCP" disabled={!selectedCwd || !onOpenMcp} onClick={() => onOpenMcp?.()}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 7v10" /><path d="M17 7v10" /><path d="M7 12h10" /><circle cx="7" cy="7" r="2" /><circle cx="17" cy="7" r="2" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" />
             </svg>
           </SidebarNavigationAction>
           <SidebarNavigationAction label="Packs" disabled={!selectedCwd || !onOpenPacks} onClick={() => onOpenPacks?.()}>

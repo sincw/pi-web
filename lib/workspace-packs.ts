@@ -1,12 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { SkillRef, SkillPack } from "./skill-packs-store";
+import type { McpPackReference } from "./mcp-library";
 
 export type PackStatus = "full" | "partial";
 
 export interface Receipt {
   appliedAt: string;
   installed: SkillRef[];
+  mcpServers: McpPackReference[];
 }
 
 export interface AppliedPack {
@@ -17,14 +19,26 @@ export interface AppliedPack {
 
 export interface SkippedConflict {
   packId: string;
-  skillKey: string;
+  skillKey?: string;
+  serverKey?: string;
   reason: string;
 }
 
+export interface ManagedMcpServer {
+  configHash: string;
+}
+
+export interface WorkspaceMcpState {
+  disabledServerKeys: string[];
+  managedServers: Record<string, ManagedMcpServer>;
+}
+
 export interface WorkspaceState {
-  version: 1;
+  version: 2;
+  revision: number;
   appliedPacks: AppliedPack[];
   skippedConflicts: SkippedConflict[];
+  mcp: WorkspaceMcpState;
 }
 
 export interface SkillRefConflict {
@@ -44,7 +58,7 @@ interface PathOpts {
 }
 
 function emptyState(): WorkspaceState {
-  return { version: 1, appliedPacks: [], skippedConflicts: [] };
+  return { version: 2, revision: 0, appliedPacks: [], skippedConflicts: [], mcp: { disabledServerKeys: [], managedServers: {} } };
 }
 
 export function getWorkspaceStatePath(cwd: string): string {
@@ -63,9 +77,11 @@ export function readWorkspaceState(opts: PathOpts): WorkspaceState {
   try {
     const parsed = JSON.parse(readFileSync(path, "utf8")) as Partial<WorkspaceState>;
     return {
-      version: 1,
+      version: 2,
+      revision: Number.isInteger(parsed.revision) && (parsed.revision ?? 0) >= 0 ? parsed.revision! : 0,
       appliedPacks: Array.isArray(parsed.appliedPacks) ? parsed.appliedPacks.map(normalizeApplied) : [],
       skippedConflicts: Array.isArray(parsed.skippedConflicts) ? parsed.skippedConflicts.map(normalizeSkipped) : [],
+      mcp: normalizeMcp(parsed.mcp),
     };
   } catch {
     return emptyState();
@@ -74,23 +90,51 @@ export function readWorkspaceState(opts: PathOpts): WorkspaceState {
 
 function normalizeApplied(p: unknown): AppliedPack {
   const raw = p as Partial<AppliedPack>;
-  const receipt = raw.receipt ?? { appliedAt: "", installed: [] };
+  const receipt = raw.receipt ?? { appliedAt: "", installed: [], mcpServers: [] };
   return {
     packId: typeof raw.packId === "string" ? raw.packId : "",
     status: raw.status === "partial" ? "partial" : "full",
     receipt: {
       appliedAt: typeof receipt.appliedAt === "string" ? receipt.appliedAt : "",
       installed: Array.isArray(receipt.installed) ? receipt.installed : [],
+      mcpServers: Array.isArray(receipt.mcpServers) ? receipt.mcpServers.map(normalizeMcpRef) : [],
     },
+  };
+}
+
+function normalizeMcpRef(value: unknown): McpPackReference {
+  const raw = value as Partial<McpPackReference>;
+  return {
+    serverKey: typeof raw.serverKey === "string" ? raw.serverKey : "",
+    configHash: typeof raw.configHash === "string" ? raw.configHash : "",
   };
 }
 
 function normalizeSkipped(s: unknown): SkippedConflict {
   const raw = s as Partial<SkippedConflict>;
+  const skillKey = typeof raw.skillKey === "string" ? raw.skillKey : undefined;
+  const serverKey = typeof raw.serverKey === "string" ? raw.serverKey : undefined;
   return {
     packId: typeof raw.packId === "string" ? raw.packId : "",
-    skillKey: typeof raw.skillKey === "string" ? raw.skillKey : "",
+    ...(skillKey === undefined ? {} : { skillKey }),
+    ...(serverKey === undefined ? {} : { serverKey }),
     reason: typeof raw.reason === "string" ? raw.reason : "",
+  };
+}
+
+function normalizeMcp(value: unknown): WorkspaceMcpState {
+  const raw = value as Partial<WorkspaceMcpState> | undefined;
+  const managed = raw?.managedServers && typeof raw.managedServers === "object" && !Array.isArray(raw.managedServers)
+    ? Object.fromEntries(Object.entries(raw.managedServers).flatMap(([key, entry]) => {
+      const hash = (entry as Partial<ManagedMcpServer>)?.configHash;
+      return typeof hash === "string" ? [[key, { configHash: hash }]] : [];
+    }))
+    : {};
+  return {
+    disabledServerKeys: Array.isArray(raw?.disabledServerKeys)
+      ? raw.disabledServerKeys.filter((key): key is string => typeof key === "string")
+      : [],
+    managedServers: managed,
   };
 }
 
@@ -116,9 +160,11 @@ export function upsertAppliedPack(
   const others = state.appliedPacks.filter((p) => p.packId !== applied.packId);
   const otherConflicts = state.skippedConflicts.filter((c) => c.packId !== applied.packId);
   return {
-    version: 1,
+    version: 2,
+    revision: state.revision,
     appliedPacks: [...others, applied],
     skippedConflicts: [...otherConflicts, ...conflicts],
+    mcp: state.mcp,
   };
 }
 
@@ -128,9 +174,11 @@ export function upsertAppliedPack(
  */
 export function removeAppliedPack(state: WorkspaceState, packId: string): WorkspaceState {
   return {
-    version: 1,
+    version: 2,
+    revision: state.revision,
     appliedPacks: state.appliedPacks.filter((p) => p.packId !== packId),
     skippedConflicts: state.skippedConflicts.filter((c) => c.packId !== packId),
+    mcp: state.mcp,
   };
 }
 

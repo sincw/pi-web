@@ -62,6 +62,7 @@ export interface SkillPackInfo {
   name: string;
   description: string;
   skillCount: number;
+  mcpServerCount: number;
 }
 
 export interface SkillPackDetail {
@@ -69,11 +70,23 @@ export interface SkillPackDetail {
   name: string;
   description: string;
   skills: LibrarySkillInfo[];
+  mcpServers: LibraryMcpServerInfo[];
 }
 
 export interface SkillLibraryResponse {
   libraryRoot: string | null;
   skills: LibrarySkillInfo[];
+  mcpServers: LibraryMcpServerInfo[];
+}
+
+export interface LibraryMcpServerInfo {
+  serverKey: string;
+  name: string;
+  description: string;
+  source?: string;
+  sourceRef?: string;
+  definition: Record<string, unknown>;
+  configHash: string;
 }
 
 export type PackStatus = "full" | "partial";
@@ -85,18 +98,34 @@ export interface AppliedPackInfo {
   receipt: {
     appliedAt: string;
     installed: { skillKey: string; contentHash: string }[];
+    mcpServers: { serverKey: string; configHash: string }[];
   };
 }
 
 export interface SkippedConflictInfo {
   packId: string;
-  skillKey: string;
+  skillKey?: string;
+  serverKey?: string;
   reason: string;
 }
 
 export interface WorkspaceSkillPacksResponse {
+  revision: number;
   appliedPacks: AppliedPackInfo[];
   skippedConflicts: SkippedConflictInfo[];
+}
+
+export interface McpAdapterStatusInfo {
+  state: "ready" | "missing" | "disabled";
+  package: "npm:pi-mcp-adapter";
+  version?: string;
+}
+
+export interface WorkspaceMcpServerInfo {
+  serverKey: string;
+  definition: Record<string, unknown>;
+  source: "team-project" | "pi-project";
+  managedByPack: boolean;
 }
 
 export interface ApplyPreviewEntry {
@@ -129,12 +158,43 @@ export interface PackPlanInfo {
 }
 
 export interface ApplyPreviewResponse {
+  workspaceRevision: number;
+  mcpRelevant: boolean;
   canApply: boolean;
   toInstall: ApplyPreviewEntry[];
   skipped: SkippedPreviewEntry[];
   blocked: BlockedPreviewEntry[];
   versionConflicts: VersionConflictInfo[];
   packs: PackPlanInfo[];
+  mcp: McpApplyPreview;
+}
+
+export interface McpPreviewEntry {
+  serverKey: string;
+  configHash: string;
+}
+
+export interface McpSkippedPreviewEntry {
+  serverKey: string;
+  reason: string;
+}
+
+export interface McpBlockedPreviewEntry {
+  serverKey: string;
+  reason: string;
+}
+
+export interface McpVersionConflictInfo {
+  serverKey: string;
+  configHashes: string[];
+  packIds: string[];
+}
+
+export interface McpApplyPreview {
+  toConfigure: McpPreviewEntry[];
+  skipped: McpSkippedPreviewEntry[];
+  blocked: McpBlockedPreviewEntry[];
+  versionConflicts: McpVersionConflictInfo[];
 }
 
 export type PluginScope = "global" | "project";

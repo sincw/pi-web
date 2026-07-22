@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { createPack, readConfig, writeConfig, type SkillRef } from "@/lib/skill-packs-store";
+import { createPack, readConfig, writeConfig, type SkillPack } from "@/lib/skill-packs-store";
 import type { SkillPackInfo } from "@/lib/api-types";
 
 export const dynamic = "force-dynamic";
 
-function toInfo(pack: { id: string; name: string; description: string; skills: SkillRef[] }): SkillPackInfo {
-  return { id: pack.id, name: pack.name, description: pack.description, skillCount: pack.skills.length };
+function toInfo(pack: SkillPack): SkillPackInfo {
+  return { id: pack.id, name: pack.name, description: pack.description, skillCount: pack.skills.length, mcpServerCount: pack.mcpServers.length };
 }
 
 // GET /api/skill-packs

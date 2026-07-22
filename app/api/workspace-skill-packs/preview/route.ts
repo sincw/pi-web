@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { preview } from "@/lib/skill-pack-apply";
+import { previewWorkspacePackChange } from "@/lib/skill-pack-apply";
 import { ensureLibraryRoot, readConfig } from "@/lib/skill-packs-store";
 import type { ApplyPreviewResponse } from "@/lib/api-types";
 
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     if (packIds.length === 0) return NextResponse.json({ error: "packIds required" }, { status: 400 });
     const config = ensureLibraryRoot(readConfig());
     if (!config.libraryRoot) return NextResponse.json({ error: "skill library not configured" }, { status: 400 });
-    const plan = preview(cwd, config.libraryRoot, packIds, config);
+    const plan = previewWorkspacePackChange(cwd, config.libraryRoot, packIds, config);
     return NextResponse.json(plan as ApplyPreviewResponse);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

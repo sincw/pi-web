@@ -11,6 +11,7 @@ import type {
   AppliedPackInfo,
   ApplyPreviewResponse,
   LibrarySkillInfo,
+  McpAdapterStatusInfo,
 } from "@/lib/api-types";
 
 function shortenPath(p: string): string {
@@ -807,8 +808,10 @@ function WorkspacePacksBar({
   refreshKey?: number;
 }) {
   const [applied, setApplied] = useState<AppliedPackInfo[]>([]);
-  const [skipped, setSkipped] = useState<{ packId: string; skillKey: string; reason: string }[]>([]);
+  const [workspaceRevision, setWorkspaceRevision] = useState(0);
+  const [skipped, setSkipped] = useState<{ packId: string; skillKey?: string; serverKey?: string; reason: string }[]>([]);
   const [packs, setPacks] = useState<SkillPackInfo[]>([]);
+  const [adapter, setAdapter] = useState<McpAdapterStatusInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -817,21 +820,26 @@ function WorkspacePacksBar({
 
   const load = useCallback(async () => {
     try {
-      const [wsRes, packsRes] = await Promise.all([
+      const [wsRes, packsRes, adapterRes] = await Promise.all([
         fetch(`/api/workspace-skill-packs?cwd=${encodeURIComponent(cwd)}`),
         fetch("/api/skill-packs"),
+        fetch(`/api/mcp/status?cwd=${encodeURIComponent(cwd)}`),
       ]);
       const ws = (await wsRes.json()) as {
         appliedPacks?: AppliedPackInfo[];
-        skippedConflicts?: { packId: string; skillKey: string; reason: string }[];
+        skippedConflicts?: { packId: string; skillKey?: string; serverKey?: string; reason: string }[];
+        revision?: number;
         error?: string;
       };
       const p = (await packsRes.json()) as { packs?: SkillPackInfo[]; error?: string };
+      const adapterData = (await adapterRes.json()) as McpAdapterStatusInfo & { error?: string };
       if (ws.error) throw new Error(ws.error);
       if (p.error) throw new Error(p.error);
       setApplied(ws.appliedPacks ?? []);
+      setWorkspaceRevision(ws.revision ?? 0);
       setSkipped(ws.skippedConflicts ?? []);
       setPacks(p.packs ?? []);
+      setAdapter(adapterData.error ? null : adapterData);
     } catch (e) {
       setError(String(e));
     }
@@ -845,7 +853,11 @@ function WorkspacePacksBar({
 
   const removeTag = async (packId: string) => {
     try {
-      const res = await fetch(`/api/workspace-skill-packs?cwd=${encodeURIComponent(cwd)}&packId=${encodeURIComponent(packId)}`, {
+      const pack = applied.find((item) => item.packId === packId);
+      if (pack?.receipt.mcpServers.length && adapter?.state !== "ready") {
+        throw new Error(`MCP adapter is ${adapter?.state ?? "unavailable"}; enable ${adapter?.package ?? "npm:pi-mcp-adapter"} before removing this Pack.`);
+      }
+      const res = await fetch(`/api/workspace-skill-packs?cwd=${encodeURIComponent(cwd)}&packId=${encodeURIComponent(packId)}&workspaceRevision=${workspaceRevision}`, {
         method: "DELETE",
       });
       const d = (await res.json()) as { error?: string };
@@ -872,13 +884,14 @@ function WorkspacePacksBar({
     const res = await fetch("/api/workspace-skill-packs/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cwd, plan: confirmedPlan }),
+      body: JSON.stringify({ cwd, packIds, workspaceRevision: confirmedPlan.workspaceRevision }),
     });
     const d = (await res.json()) as { success?: boolean; error?: string };
     if (d.error) throw new Error(d.error);
   };
 
   const unusedPacks = packs.filter((p) => !applied.some((a) => a.packId === p.id));
+  const hasMcpPacks = applied.some((pack) => pack.receipt.mcpServers.length > 0) || packs.some((pack) => pack.mcpServerCount > 0);
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -901,7 +914,7 @@ function WorkspacePacksBar({
                 color: p.status === "partial" ? "#d97706" : "#16a34a",
                 border: `1px solid ${p.status === "partial" ? "rgba(217,119,6,0.3)" : "rgba(34,197,94,0.3)"}`,
               }}
-              title={skippedHere.map((s) => `${s.skillKey} skipped`).join("\n")}
+              title={skippedHere.map((s) => `${s.skillKey ?? s.serverKey ?? "entry"} skipped`).join("\n")}
             >
               {p.packName || p.packId}
               {p.status === "partial" && <span style={{ fontSize: 10, fontWeight: 600 }}>· 有跳过</span>}
@@ -938,6 +951,11 @@ function WorkspacePacksBar({
             + Apply pack
           </button>
         )}
+        {hasMcpPacks && adapter && (
+          <span style={{ fontSize: 11, color: adapter.state === "ready" ? "#16a34a" : "#d97706" }}>
+            MCP adapter: {adapter.state}{adapter.version ? ` (${adapter.version})` : ""}
+          </span>
+        )}
       </div>
       {error && <div style={{ fontSize: 12, color: "#f87171", marginTop: 6 }}>{error}</div>}
 
@@ -947,7 +965,7 @@ function WorkspacePacksBar({
           onPreview={async (ids) => {
             setError(null);
             try {
-              const plan = await runPreview(ids);
+              const plan = await runPreview([...applied.map((pack) => pack.packId), ...ids]);
               setPreview(plan);
             } catch (e) {
               setError(String(e));
@@ -959,7 +977,7 @@ function WorkspacePacksBar({
             setError(null);
             try {
               if (!preview?.canApply) throw new Error("No confirmed preview to apply");
-              await runApply(ids, preview);
+              await runApply([...applied.map((pack) => pack.packId), ...ids], preview);
               await load();
               onApplied();
               setPicking(false);
@@ -976,6 +994,7 @@ function WorkspacePacksBar({
           }}
           preview={preview}
           applying={applying}
+          adapter={adapter}
         />
       )}
     </div>
@@ -989,6 +1008,7 @@ function PackPicker({
   onClose,
   preview,
   applying,
+  adapter,
 }: {
   packs: SkillPackInfo[];
   onPreview: (ids: string[]) => void;
@@ -996,8 +1016,11 @@ function PackPicker({
   onClose: () => void;
   preview: ApplyPreviewResponse | null;
   applying: boolean;
+  adapter: McpAdapterStatusInfo | null;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const mcpChange = Boolean(preview?.mcpRelevant);
+  const adapterBlocked = mcpChange && adapter !== null && adapter.state !== "ready";
 
   return (
     <div
@@ -1029,7 +1052,7 @@ function PackPicker({
           overflow: "auto",
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>Apply Skill Packs</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>Apply Packs</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {packs.map((p) => {
             const checked = selected.has(p.id);
@@ -1061,6 +1084,7 @@ function PackPicker({
                   <div style={{ fontSize: 13, color: "var(--text)" }}>{p.name}</div>
                   <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
                     {p.skillCount} skill{p.skillCount === 1 ? "" : "s"}
+                    {p.mcpServerCount > 0 && ` · ${p.mcpServerCount} MCP`}
                   </div>
                 </div>
               </label>
@@ -1082,6 +1106,22 @@ function PackPicker({
                 Will skip: {preview.skipped.map((s) => s.skillKey).join(", ")}
               </div>
             )}
+            {(preview.mcp.toConfigure.length > 0 || preview.mcp.skipped.length > 0) && (
+              <div>
+                {preview.mcp.toConfigure.length > 0 && `Will configure MCP: ${preview.mcp.toConfigure.map((i) => i.serverKey).join(", ")}`}
+                {preview.mcp.skipped.length > 0 && ` Will skip MCP: ${preview.mcp.skipped.map((i) => i.serverKey).join(", ")}`}
+              </div>
+            )}
+            {(preview.mcp.blocked.length > 0 || preview.mcp.versionConflicts.length > 0) && (
+              <div style={{ color: "#f87171" }}>
+                Cannot configure MCP: {preview.mcp.blocked.length + preview.mcp.versionConflicts.length} conflict(s)
+              </div>
+            )}
+          </div>
+        )}
+        {adapterBlocked && (
+          <div style={{ fontSize: 12, color: "#f87171" }}>
+            MCP adapter is {adapter?.state}. Enable {adapter?.package} before applying MCP changes.
           </div>
         )}
 
@@ -1118,15 +1158,15 @@ function PackPicker({
           </button>
           <button
             onClick={() => onApply(Array.from(selected))}
-            disabled={!preview?.canApply || applying}
+            disabled={!preview?.canApply || applying || adapterBlocked}
             style={{
               padding: "6px 14px",
               border: "none",
               borderRadius: 6,
               background: "var(--accent)",
               color: "#fff",
-              cursor: !preview?.canApply || applying ? "not-allowed" : "pointer",
-              opacity: !preview?.canApply || applying ? 0.5 : 1,
+              cursor: !preview?.canApply || applying || adapterBlocked ? "not-allowed" : "pointer",
+              opacity: !preview?.canApply || applying || adapterBlocked ? 0.5 : 1,
               fontSize: 13,
               fontWeight: 600,
             }}
@@ -1147,6 +1187,7 @@ function LibraryTab() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1193,6 +1234,22 @@ function LibraryTab() {
       [skill.name, skill.skillKey, skill.description].some((value) => value.toLowerCase().includes(normalized)),
     );
   }, [query, skills]);
+
+  const removeSkill = async (skill: LibrarySkillInfo) => {
+    if (!confirm(`Remove "${skill.name}" from the library?`)) return;
+    setRemoving(skill.skillKey);
+    setError(null);
+    try {
+      const response = await fetch(`/api/skill-library/skills/${encodeURIComponent(skill.skillKey)}`, { method: "DELETE" });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok || data.error) throw new Error(data.error ?? `HTTP ${response.status}`);
+      setSkills((items) => items.filter((item) => item.skillKey.toLowerCase() !== skill.skillKey.toLowerCase()));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setRemoving(null);
+    }
+  };
 
   return (
     <div className="skills-library">
@@ -1246,6 +1303,7 @@ function LibraryTab() {
                 <span className="skill-source-mark" aria-hidden="true">{skill.name.slice(0, 1).toUpperCase()}</span>
                 <strong title={skill.name}>{skill.name}</strong>
                 <span className="skill-library-card-hash" title={`Content hash ${skill.contentHash}`}>{shortHash(skill.contentHash)}</span>
+                <button type="button" className="skill-library-remove" onClick={() => void removeSkill(skill)} disabled={removing === skill.skillKey} title={`Remove ${skill.name} from library`} aria-label={`Remove ${skill.name} from library`}>×</button>
               </div>
               {skill.description && <p>{skill.description}</p>}
               <div className="skill-card-meta">
@@ -1337,7 +1395,7 @@ export function SkillsConfig({
         setPackDefinitions(
           infos.map((info) => {
             const detail = details.find((d) => d.id === info.id);
-            return detail ?? { ...info, skills: [] };
+            return detail ?? { ...info, skills: [], mcpServers: [] };
           }),
         );
       } catch (e) {

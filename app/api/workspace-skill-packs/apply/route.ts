@@ -1,55 +1,48 @@
 import { NextResponse } from "next/server";
-import { applyPlan, preview } from "@/lib/skill-pack-apply";
+import { applyWorkspacePackChange, previewWorkspacePackChange, WorkspacePlanBlocked, WorkspaceRevisionConflict } from "@/lib/skill-pack-apply";
+import { getMcpAdapterStatus, McpAdapterRequired, requireMcpAdapter } from "@/lib/mcp-adapter";
 import { ensureLibraryRoot, readConfig } from "@/lib/skill-packs-store";
-import type { ApplyPreviewResponse } from "@/lib/api-types";
 
 export const dynamic = "force-dynamic";
 
-function isPlan(value: unknown): value is ApplyPreviewResponse {
-  const p = value as ApplyPreviewResponse;
-  return (
-    typeof p === "object" &&
-    p !== null &&
-    typeof p.canApply === "boolean" &&
-    Array.isArray(p.toInstall) &&
-    Array.isArray(p.skipped) &&
-    Array.isArray(p.blocked) &&
-    Array.isArray(p.versionConflicts) &&
-    Array.isArray(p.packs)
-  );
-}
-
 // POST /api/workspace-skill-packs/apply
-// body: { cwd: string; plan: ApplyPreviewResponse }
-// The client must pass back the exact preview it confirmed. If no plan is
-// supplied, the server recomputes one as a fallback.
+// body: { cwd: string; packIds: string[]; workspaceRevision: number }
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
       cwd?: string;
-      plan?: ApplyPreviewResponse;
       packIds?: string[];
+      workspaceRevision?: number;
     };
     const cwd = body.cwd?.trim();
     if (!cwd) return NextResponse.json({ error: "cwd required" }, { status: 400 });
     const config = ensureLibraryRoot(readConfig());
     if (!config.libraryRoot) return NextResponse.json({ error: "skill library not configured" }, { status: 400 });
-
-    let plan: ReturnType<typeof preview>;
-    if (body.plan && isPlan(body.plan)) {
-      plan = body.plan;
-    } else {
-      const packIds = Array.isArray(body.packIds) ? body.packIds : [];
-      if (packIds.length === 0) return NextResponse.json({ error: "packIds or plan required" }, { status: 400 });
-      plan = preview(cwd, config.libraryRoot, packIds, config);
+    const packIds = Array.isArray(body.packIds) ? body.packIds : [];
+    if (packIds.length === 0 || typeof body.workspaceRevision !== "number" || !Number.isInteger(body.workspaceRevision)) {
+      return NextResponse.json({ error: "packIds and workspaceRevision required" }, { status: 400 });
     }
-
-    if (!plan.canApply) {
-      return NextResponse.json({ error: "Plan cannot be applied", plan }, { status: 409 });
+    const preview = previewWorkspacePackChange(cwd, config.libraryRoot, packIds, config);
+    if (preview.mcpRelevant) {
+      const adapter = getMcpAdapterStatus(cwd);
+      if (adapter.state !== "ready") {
+        return NextResponse.json({ error: "MCP_ADAPTER_REQUIRED", adapter }, { status: 412 });
+      }
     }
-    const result = applyPlan(cwd, config.libraryRoot, plan);
-    return NextResponse.json({ success: true, installed: result.installed, skipped: result.skipped });
+    const result = await applyWorkspacePackChange(cwd, config.libraryRoot, packIds, body.workspaceRevision, config, {
+      ensureMcpAdapter: () => requireMcpAdapter(cwd),
+    });
+    return NextResponse.json({ success: true, installed: result.installed, skipped: result.plan.skipped, workspaceRevision: result.plan.workspaceRevision + 1 });
   } catch (e: unknown) {
+    if (e instanceof McpAdapterRequired) {
+      return NextResponse.json({ error: "MCP_ADAPTER_REQUIRED", adapter: e.adapter }, { status: 412 });
+    }
+    if (e instanceof WorkspaceRevisionConflict) {
+      return NextResponse.json({ error: e.message, workspaceRevision: e.revision }, { status: 409 });
+    }
+    if (e instanceof WorkspacePlanBlocked) {
+      return NextResponse.json({ error: e.message, plan: e.plan }, { status: 409 });
+    }
     const err = e as { message?: string };
     return NextResponse.json({ error: err.message || String(e) }, { status: 500 });
   }

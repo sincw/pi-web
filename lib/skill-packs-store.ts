@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { getLibrarySkillsDir } from "./skill-library";
+import type { McpPackReference } from "./mcp-library";
 
 export interface SkillRef {
   /** Directory name of the skill copy in the library. */
@@ -17,10 +18,11 @@ export interface SkillPack {
   name: string;
   description: string;
   skills: SkillRef[];
+  mcpServers: McpPackReference[];
 }
 
 export interface SkillPacksConfig {
-  version: 1;
+  version: 2;
   libraryRoot: string | null;
   packs: SkillPack[];
 }
@@ -39,7 +41,7 @@ interface Deps {
 }
 
 function emptyConfig(): SkillPacksConfig {
-  return { version: 1, libraryRoot: null, packs: [] };
+  return { version: 2, libraryRoot: null, packs: [] };
 }
 
 /** Default location of the global skill-packs config (~/.pi/agent/skill-packs.json). */
@@ -73,7 +75,7 @@ export function readConfig(opts: PathOpts = {}): SkillPacksConfig {
   try {
     const parsed = JSON.parse(readFileSync(path, "utf8")) as Partial<SkillPacksConfig>;
     return {
-      version: 1,
+      version: 2,
       libraryRoot: typeof parsed.libraryRoot === "string" ? parsed.libraryRoot : null,
       packs: Array.isArray(parsed.packs) ? parsed.packs.map(normalizePack) : [],
     };
@@ -89,6 +91,7 @@ function normalizePack(p: unknown): SkillPack {
     name: typeof raw.name === "string" ? raw.name : "",
     description: typeof raw.description === "string" ? raw.description : "",
     skills: Array.isArray(raw.skills) ? raw.skills.map(normalizeRef) : [],
+    mcpServers: Array.isArray(raw.mcpServers) ? raw.mcpServers.map(normalizeMcpRef) : [],
   };
 }
 
@@ -97,6 +100,14 @@ function normalizeRef(s: unknown): SkillRef {
   return {
     skillKey: typeof raw.skillKey === "string" ? raw.skillKey : "",
     contentHash: typeof raw.contentHash === "string" ? raw.contentHash : "",
+  };
+}
+
+function normalizeMcpRef(s: unknown): McpPackReference {
+  const raw = s as Partial<McpPackReference>;
+  return {
+    serverKey: typeof raw.serverKey === "string" ? raw.serverKey : "",
+    configHash: typeof raw.configHash === "string" ? raw.configHash : "",
   };
 }
 
@@ -136,6 +147,7 @@ export function createPack(
     name: input.name,
     description: input.description ?? "",
     skills: [],
+    mcpServers: [],
   };
   return { config: { ...config, packs: [...config.packs, pack] }, pack };
 }
@@ -144,6 +156,7 @@ export interface UpdatePackInput {
   name?: string;
   description?: string;
   skills?: SkillRef[];
+  mcpServers?: McpPackReference[];
 }
 
 /** Edit a pack by id (pure); packs not found are returned unchanged. */
@@ -158,6 +171,7 @@ export function updatePack(config: SkillPacksConfig, id: string, patch: UpdatePa
             name: patch.name ?? p.name,
             description: patch.description ?? p.description,
             skills: patch.skills ?? p.skills,
+            mcpServers: patch.mcpServers?.map(normalizeMcpRef) ?? p.mcpServers,
           }
         : p,
     ),
@@ -215,5 +229,16 @@ export function findPacksReferencingSkillKey(
   const target = skillKey.toLowerCase();
   return config.packs
     .filter((p) => p.skills.some((s) => s.skillKey.toLowerCase() === target))
+    .map((p) => ({ packId: p.id, packName: p.name }));
+}
+
+/** List packs that reference the given MCP server key (case-insensitive). */
+export function findPacksReferencingMcpServerKey(
+  config: SkillPacksConfig,
+  serverKey: string,
+): PackReference[] {
+  const target = serverKey.toLowerCase();
+  return config.packs
+    .filter((p) => p.mcpServers.some((server) => server.serverKey.toLowerCase() === target))
     .map((p) => ({ packId: p.id, packName: p.name }));
 }

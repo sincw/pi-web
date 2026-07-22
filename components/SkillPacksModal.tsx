@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type {
   LibrarySkillInfo,
+  LibraryMcpServerInfo,
   SkillPackInfo,
 } from "@/lib/api-types";
 
@@ -12,16 +13,14 @@ interface PackDetail {
   name: string;
   description: string;
   skills: LibrarySkillInfo[];
+  mcpServers: LibraryMcpServerInfo[];
 }
 
 interface PackForm {
   name: string;
   description: string;
   skills: { skillKey: string; contentHash: string }[];
-}
-
-function shortHash(hash?: string) {
-  return hash ? hash.slice(0, 8) : "";
+  mcpServers: { serverKey: string; configHash: string }[];
 }
 
 export function SkillPacksModal({
@@ -34,6 +33,7 @@ export function SkillPacksModal({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<PackDetail | null>(null);
   const [librarySkills, setLibrarySkills] = useState<LibrarySkillInfo[]>([]);
+  const [libraryMcpServers, setLibraryMcpServers] = useState<LibraryMcpServerInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,11 +46,12 @@ export function SkillPacksModal({
         fetch("/api/skill-library"),
       ]);
       const packsData = (await packsRes.json()) as { packs?: SkillPackInfo[]; error?: string };
-      const libData = (await libRes.json()) as { libraryRoot?: string | null; skills?: LibrarySkillInfo[]; error?: string };
+      const libData = (await libRes.json()) as { libraryRoot?: string | null; skills?: LibrarySkillInfo[]; mcpServers?: LibraryMcpServerInfo[]; error?: string };
       if (packsData.error) throw new Error(packsData.error);
       if (libData.error) throw new Error(libData.error);
       setPacks(packsData.packs ?? []);
       setLibrarySkills(libData.skills ?? []);
+      setLibraryMcpServers(libData.mcpServers ?? []);
       if ((packsData.packs ?? []).length > 0 && !selectedId) {
         setSelectedId(packsData.packs![0].id);
       }
@@ -120,7 +121,7 @@ export function SkillPacksModal({
       setPacks((prev) =>
         prev.map((p) =>
           p.id === selectedId
-            ? { ...p, name: form.name, description: form.description, skillCount: form.skills.length }
+            ? { ...p, name: form.name, description: form.description, skillCount: form.skills.length, mcpServerCount: form.mcpServers.length }
             : p,
         ),
       );
@@ -159,7 +160,7 @@ export function SkillPacksModal({
       <div
         className="modal-surface skill-packs-modal"
         style={{
-          width: isMobile ? "calc(100vw - 16px)" : 900,
+          width: isMobile ? "calc(100vw - 16px)" : 860,
           maxWidth: "calc(100vw - 16px)",
           height: isMobile ? "calc(100dvh - 16px)" : "78vh",
           maxHeight: "calc(100dvh - 16px)",
@@ -188,6 +189,7 @@ export function SkillPacksModal({
         <ManageTab
           packs={packs}
           librarySkills={librarySkills}
+          libraryMcpServers={libraryMcpServers}
           selectedId={selectedId}
           detail={detail}
           loading={loading}
@@ -204,6 +206,7 @@ export function SkillPacksModal({
 function ManageTab({
   packs,
   librarySkills,
+  libraryMcpServers,
   selectedId,
   detail,
   loading,
@@ -214,6 +217,7 @@ function ManageTab({
 }: {
   packs: SkillPackInfo[];
   librarySkills: LibrarySkillInfo[];
+  libraryMcpServers: LibraryMcpServerInfo[];
   selectedId: string | null;
   detail: PackDetail | null;
   loading: boolean;
@@ -274,7 +278,10 @@ function ManageTab({
                   </span>
                   <span className="skill-pack-list-copy">
                     <strong>{pack.name}</strong>
-                    <span>{pack.skillCount} skill{pack.skillCount === 1 ? "" : "s"}</span>
+                    <span>
+                      {pack.skillCount} skill{pack.skillCount === 1 ? "" : "s"}
+                      {pack.mcpServerCount > 0 && ` · ${pack.mcpServerCount} MCP`}
+                    </span>
                     {pack.description && <small>{pack.description}</small>}
                   </span>
                 </button>
@@ -300,6 +307,7 @@ function ManageTab({
             key={detail.id}
             detail={detail}
             librarySkills={librarySkills}
+            libraryMcpServers={libraryMcpServers}
             saving={loading}
             onSave={onSave}
             onDelete={onDelete}
@@ -313,12 +321,14 @@ function ManageTab({
 function PackEditor({
   detail,
   librarySkills,
+  libraryMcpServers,
   saving,
   onSave,
   onDelete,
 }: {
   detail: PackDetail;
   librarySkills: LibrarySkillInfo[];
+  libraryMcpServers: LibraryMcpServerInfo[];
   saving: boolean;
   onSave: (form: PackForm) => void;
   onDelete: () => void;
@@ -328,14 +338,15 @@ function PackEditor({
   const [skills, setSkills] = useState<{ skillKey: string; contentHash: string }[]>(
     detail.skills.map((s) => ({ skillKey: s.skillKey, contentHash: s.contentHash })),
   );
-  const [showAdd, setShowAdd] = useState(false);
-  const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
+  const [mcpServers, setMcpServers] = useState<{ serverKey: string; configHash: string }[]>(
+    detail.mcpServers.map((server) => ({ serverKey: server.serverKey, configHash: server.configHash })),
+  );
 
   useEffect(() => {
     setName(detail.name);
     setDescription(detail.description);
     setSkills(detail.skills.map((s) => ({ skillKey: s.skillKey, contentHash: s.contentHash })));
-    setShowAdd(false);
+    setMcpServers(detail.mcpServers.map((server) => ({ serverKey: server.serverKey, configHash: server.configHash })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail.id]);
 
@@ -343,6 +354,10 @@ function PackEditor({
     const used = new Set(skills.map((s) => s.skillKey.toLowerCase()));
     return librarySkills.filter((s) => !used.has(s.skillKey.toLowerCase()));
   }, [skills, librarySkills]);
+  const availableMcpServers = useMemo(() => {
+    const used = new Set(mcpServers.map((server) => server.serverKey.toLowerCase()));
+    return libraryMcpServers.filter((server) => !used.has(server.serverKey.toLowerCase()));
+  }, [mcpServers, libraryMcpServers]);
 
   return (
     <div className="skill-pack-form">
@@ -370,102 +385,62 @@ function PackEditor({
         {skills.length === 0 ? (
           <p className="skill-pack-empty">No skills in this pack</p>
         ) : (
-          <div className="skill-pack-skill-grid">
+          <div className="skill-pack-item-list">
             {skills.map((s, idx) => {
-              const meta = detail.skills.find((d) => d.skillKey === s.skillKey);
               const current = librarySkills.find((l) => l.skillKey.toLowerCase() === s.skillKey.toLowerCase());
-              const isStale = current && current.contentHash !== s.contentHash;
-              const expanded = expandedSkill === s.skillKey;
               return (
-                <article key={s.skillKey} className="skill-pack-skill-card">
-                  <div className="skill-pack-skill-card-header">
-                    <span className="skill-pack-skill-mark" aria-hidden="true">
-                      {(meta?.name || s.skillKey).slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className="skill-pack-skill-name">{meta?.name || s.skillKey}</span>
+                <article key={s.skillKey} className="skill-pack-item">
+                  <div className="skill-pack-item-header">
+                    <span className="skill-pack-item-name">{current?.name || s.skillKey}</span>
                     <button
                       type="button"
                       className="skill-pack-remove"
                       onClick={() => setSkills((prev) => prev.filter((_, i) => i !== idx))}
                       disabled={saving}
-                      title={`Remove ${meta?.name || s.skillKey}`}
-                      aria-label={`Remove ${meta?.name || s.skillKey}`}
+                      title={`Remove ${current?.name || s.skillKey}`}
+                      aria-label={`Remove ${current?.name || s.skillKey}`}
                     >
                       ×
                     </button>
                   </div>
-                  <span className="skill-pack-skill-key">{s.skillKey} · {shortHash(s.contentHash)}</span>
-                  {isStale && <span className="skill-pack-stale">Needs refresh</span>}
-                  {expanded && meta?.description && (
-                    <p className="skill-pack-skill-description">{meta.description}</p>
-                  )}
-                  {meta?.description && (
-                    <button
-                      type="button"
-                      className="skill-pack-details"
-                      onClick={() => setExpandedSkill(expanded ? null : s.skillKey)}
-                    >
-                      {expanded ? "Hide details" : "Details"}
-                    </button>
-                  )}
                 </article>
               );
             })}
           </div>
         )}
+        <label className="skill-pack-select"><span className="sr-only">Add skill from library</span><select value="" onChange={(event) => { const skill = availableSkills.find((item) => item.skillKey === event.target.value); if (skill) setSkills((current) => [...current, { skillKey: skill.skillKey, contentHash: skill.contentHash }]); }} disabled={saving || availableSkills.length === 0}><option value="">{availableSkills.length ? "+ Add skill" : "No available skills"}</option>{availableSkills.map((skill) => <option key={skill.skillKey} value={skill.skillKey}>{skill.name}</option>)}</select></label>
+      </section>
 
-        {!showAdd ? (
-          <button
-            type="button"
-            className="skill-pack-add"
-            onClick={() => setShowAdd(true)}
-            disabled={saving}
-          >
-            + Add skill
-          </button>
-        ) : availableSkills.length === 0 ? (
-          <div className="skill-pack-add-panel">
-            <div className="skill-pack-add-panel-heading">
-              <span>No available library skills</span>
-              <button type="button" onClick={() => setShowAdd(false)}>Cancel</button>
-            </div>
-          </div>
+      <section className="skill-pack-section">
+        <div className="skill-pack-section-heading">
+          <span>MCP servers</span>
+          <span>{mcpServers.length}</span>
+        </div>
+        {mcpServers.length === 0 ? (
+          <p className="skill-pack-empty">No MCP servers in this pack</p>
         ) : (
-          <div className="skill-pack-add-panel">
-            <div className="skill-pack-add-panel-heading">
-              <span>Add from library</span>
-              <button type="button" onClick={() => setShowAdd(false)}>Cancel</button>
-            </div>
-            <div className="skill-pack-skill-grid">
-              {availableSkills.map((skill) => (
-                <button
-                  key={skill.skillKey}
-                  type="button"
-                  className="skill-pack-available-card"
-                  onClick={() => {
-                    setSkills((prev) => [...prev, { skillKey: skill.skillKey, contentHash: skill.contentHash }]);
-                    setShowAdd(false);
-                  }}
-                  disabled={saving}
-                >
-                  <span className="skill-pack-skill-mark" aria-hidden="true">{skill.name.slice(0, 1).toUpperCase()}</span>
-                  <span>
-                    <strong>{skill.name}</strong>
-                    <small>{skill.skillKey}</small>
-                  </span>
-                  <span aria-hidden="true">+</span>
-                </button>
-              ))}
-            </div>
+          <div className="skill-pack-item-list">
+            {mcpServers.map((server, index) => {
+              const current = libraryMcpServers.find((item) => item.serverKey.toLowerCase() === server.serverKey.toLowerCase());
+              return (
+                <article key={server.serverKey} className="skill-pack-item">
+                  <div className="skill-pack-item-header">
+                    <span className="skill-pack-item-name">{current?.name || server.serverKey}</span>
+                    <button type="button" className="skill-pack-remove" onClick={() => setMcpServers((items) => items.filter((_, i) => i !== index))} disabled={saving} title={`Remove ${current?.name || server.serverKey}`} aria-label={`Remove ${current?.name || server.serverKey}`}>×</button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
+        <label className="skill-pack-select"><span className="sr-only">Add MCP server from library</span><select value="" onChange={(event) => { const server = availableMcpServers.find((item) => item.serverKey === event.target.value); if (server) setMcpServers((current) => [...current, { serverKey: server.serverKey, configHash: server.configHash }]); }} disabled={saving || availableMcpServers.length === 0}><option value="">{availableMcpServers.length ? "+ Add MCP server" : "No available MCP servers"}</option>{availableMcpServers.map((server) => <option key={server.serverKey} value={server.serverKey}>{server.name}</option>)}</select></label>
       </section>
 
       <footer className="skill-pack-actions">
         <button
           type="button"
           className="skill-pack-save"
-          onClick={() => onSave({ name, description, skills })}
+          onClick={() => onSave({ name, description, skills, mcpServers })}
           disabled={saving || !name.trim()}
         >
           {saving ? "Saving..." : "Save"}

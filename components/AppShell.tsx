@@ -6,6 +6,7 @@ import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import { ModelsConfig } from "./ModelsConfig";
 import { SkillsConfig } from "./SkillsConfig";
+import { McpConfig } from "./McpConfig";
 import { SkillPacksModal } from "./SkillPacksModal";
 import { PluginsConfig } from "./PluginsConfig";
 import { BranchNavigator } from "./BranchNavigator";
@@ -36,6 +37,7 @@ export function AppShell() {
   const [modelsConfigOpen, setModelsConfigOpen] = useState(false);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
   const [skillsConfigOpen, setSkillsConfigOpen] = useState(false);
+  const [mcpConfigOpen, setMcpConfigOpen] = useState(false);
   const [packsConfigOpen, setPacksConfigOpen] = useState(false);
   const [packsRefreshKey, setPacksRefreshKey] = useState(0);
   const [pluginsConfigOpen, setPluginsConfigOpen] = useState(false);
@@ -321,6 +323,10 @@ export function AppShell() {
         showExplorer={false}
         onOpenSkills={() => {
           setSkillsConfigOpen(true);
+          if (isMobile) setSidebarOpen(false);
+        }}
+        onOpenMcp={() => {
+          setMcpConfigOpen(true);
           if (isMobile) setSidebarOpen(false);
         }}
         onOpenPacks={() => {
@@ -962,6 +968,9 @@ export function AppShell() {
         onPacksChanged={() => setPacksRefreshKey((k) => k + 1)}
         packsRefreshKey={packsRefreshKey}
       />
+    )}
+    {mcpConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
+      <McpConfig cwd={(activeCwd ?? selectedSession?.cwd ?? newSessionCwd)!} onClose={() => setMcpConfigOpen(false)} />
     )}
     {packsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
       <SkillPacksModal onClose={() => setPacksConfigOpen(false)} />

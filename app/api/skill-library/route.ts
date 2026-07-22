@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { scanLibrary } from "@/lib/skill-library";
+import { scanLibraryMcpServers } from "@/lib/mcp-library";
 import { readConfig, setLibraryRoot, writeConfig, ensureLibraryRoot } from "@/lib/skill-packs-store";
 import { allowFileRoot } from "@/lib/file-access";
 
@@ -10,7 +11,16 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const config = ensureLibraryRoot(readConfig());
   const skills = config.libraryRoot ? scanLibrary(config.libraryRoot) : [];
-  return NextResponse.json({ libraryRoot: config.libraryRoot, skills });
+  const mcpServers = config.libraryRoot ? scanLibraryMcpServers(config.libraryRoot).map((server) => ({
+    serverKey: server.serverKey,
+    name: server.name,
+    description: server.description,
+    source: server.source,
+    sourceRef: server.sourceRef,
+    definition: server.definition,
+    configHash: server.configHash,
+  })) : [];
+  return NextResponse.json({ libraryRoot: config.libraryRoot, skills, mcpServers });
 }
 
 // PUT /api/skill-library body: { libraryRoot: string }
