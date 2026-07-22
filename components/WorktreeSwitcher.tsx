@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { GitBranch } from "@/lib/git-branches";
 
 interface WorktreeEntry {
   path: string;
@@ -13,6 +14,7 @@ interface WorktreeState {
   isGit: boolean;
   isTopLevel: boolean;
   worktrees: WorktreeEntry[];
+  branches: GitBranch[];
 }
 
 interface Props {
@@ -54,15 +56,18 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
 
     let cancelled = false;
     setState(null);
-    fetch(`/api/worktrees?cwd=${encodeURIComponent(cwd)}`)
-      .then((res) => res.json())
-      .then((data: { projectRoot?: string; isGit?: boolean; isTopLevel?: boolean; worktrees?: WorktreeEntry[]; error?: string }) => {
+    Promise.all([
+      fetch(`/api/worktrees?cwd=${encodeURIComponent(cwd)}`).then((res) => res.json() as Promise<{ projectRoot?: string; isGit?: boolean; isTopLevel?: boolean; worktrees?: WorktreeEntry[]; error?: string }>),
+      fetch(`/api/git?cwd=${encodeURIComponent(cwd)}&action=branches`).then((res) => res.ok ? res.json() as Promise<{ branches?: GitBranch[] }> : { branches: [] }),
+    ])
+      .then(([data, branchData]) => {
         if (cancelled || data.error || !data.projectRoot) return;
         setState({
           projectRoot: data.projectRoot,
           isGit: data.isGit ?? false,
           isTopLevel: data.isTopLevel ?? false,
           worktrees: data.worktrees ?? [],
+          branches: branchData.branches ?? [],
         });
       })
       .catch(() => {
@@ -102,6 +107,35 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
     closeMenu();
     onCwdChange(worktree.path, state.projectRoot);
   }, [closeMenu, cwd, onCwdChange, state]);
+
+  const selectBranch = useCallback(async (branch: GitBranch) => {
+    if (!state || busy) return;
+    const existing = state.worktrees.find((worktree) => worktree.branch === branch.name);
+    if (existing) {
+      selectWorktree(existing);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/worktrees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd: state.projectRoot, branch: branch.name }),
+      });
+      const data = await response.json().catch(() => ({})) as { path?: string; error?: string };
+      if (!response.ok || !data.path || data.error) {
+        setError(data.error ?? `HTTP ${response.status}`);
+        return;
+      }
+      closeMenu();
+      onCwdChange(data.path, state.projectRoot);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, closeMenu, onCwdChange, selectWorktree, state]);
 
   const createWorktree = useCallback(async () => {
     const trimmedBranch = branch.trim();
@@ -168,6 +202,7 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
   const current = state.worktrees.find((worktree) => worktree.path === cwd)
     ?? state.worktrees.find((worktree) => worktree.isMain);
   const currentLabel = current?.branch ?? (current?.isMain ? "main" : "Worktree");
+  const unopenedBranches = state.branches.filter((branch) => branch.kind === "local" && !state.worktrees.some((worktree) => worktree.branch === branch.name));
 
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
@@ -175,8 +210,8 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
         type="button"
         onClick={() => !disabled && setOpen((value) => !value)}
         disabled={disabled}
-        title={current ? `Switch worktree: ${current.path}` : "Switch worktree"}
-        aria-label="Switch worktree"
+        title={current ? `Switch branch: ${current.path}` : "Switch branch"}
+        aria-label="Switch branch"
         aria-expanded={open}
         style={{
           display: "flex",
@@ -284,6 +319,15 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
                 </div>
               );
             })}
+            {unopenedBranches.length > 0 && <>
+              <div style={{ padding: "7px 10px 4px", borderBottom: "1px solid var(--border)", color: "var(--text-dim)", fontSize: 10, fontWeight: 650, textTransform: "uppercase" }}>Branches</div>
+              {unopenedBranches.map((branch) => (
+                <button key={branch.name} type="button" onClick={() => void selectBranch(branch)} disabled={busy} title={`Open ${branch.name} in a worktree`} style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, padding: "8px 10px", border: "none", borderBottom: "1px solid var(--border)", background: "var(--bg)", color: "var(--text-muted)", cursor: busy ? "not-allowed" : "pointer", fontFamily: "var(--font-mono)", fontSize: 12, textAlign: "left" }}>
+                  <span style={{ width: 10, flexShrink: 0 }} />
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{branch.name}</span>
+                </button>
+              ))}
+            </>}
           </div>
 
           {!newWorktreeOpen ? (
@@ -297,7 +341,7 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
               style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "9px 10px", border: "none", background: "var(--bg)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12, textAlign: "left" }}
             >
               <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
-              New worktree
+              New branch
             </button>
           ) : (
             <div style={{ padding: "8px 10px", borderTop: "1px solid var(--border)" }}>

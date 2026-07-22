@@ -68,11 +68,15 @@ app/api/
   skill-library/import/route.ts   POST import market, local, or Git skills into library
   skill-library/skills/route.ts   GET library skills
   skill-library/skills/[skillKey]/route.ts GET/DELETE one library skill
+  skill-library/mcp-servers/route.ts GET/POST library MCP servers
+  skill-library/mcp-servers/[serverKey]/route.ts GET/PATCH/DELETE one library MCP server
   skill-packs/route.ts            GET/POST global skill pack list/create
   skill-packs/[id]/route.ts       GET/PATCH/DELETE one skill pack
   workspace-skill-packs/route.ts  GET/DELETE workspace pack state/unapply
   workspace-skill-packs/preview/route.ts POST compute apply plan
   workspace-skill-packs/apply/route.ts POST apply confirmed plan
+  mcp/servers/route.ts            GET workspace MCP servers
+  mcp/status/route.ts             GET MCP adapter readiness
   worktrees/route.ts              GET/POST/DELETE git worktrees
 
 lib/
@@ -83,6 +87,9 @@ lib/
   markdown.ts          shared markdown helpers
   npx.ts               npx runner used by skill install
   content-hash.ts       deterministic hash for a library skill directory
+  mcp-library.ts        library MCP validation and CRUD
+  mcp-pack-apply.ts     protected MCP reconciliation for workspace pack changes
+  mcp-adapter.ts        MCP adapter discovery and readiness checks
   pi-types.ts          local structural types for pi SDK objects
   rpc-manager.ts      AgentSessionWrapper + registry + startRpcSession
   session-reader.ts   SessionManager wrappers + path cache + buildSessionContext adapter
@@ -107,8 +114,9 @@ components/
   ModelsConfig.tsx    modal for editing models.json (opened from sidebar bottom)
   PluginsConfig.tsx   modal for installed package plugins
   SkillsConfig.tsx    modal for loaded/search/installable skills
+  McpConfig.tsx       modal for workspace, library, and editable MCP definitions
   SkillPacksModal.tsx global skill-pack definition management
-  FileExplorer.tsx    reusable project file tree
+  WorkspaceFileTree.tsx reusable project file tree
   FileIcons.tsx       file icon helpers
   FileViewer.tsx      file content preview
   TabBar.tsx          generic closable tab row
@@ -192,11 +200,12 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - `/api/skills/install` shells through `npx skills add ... --agent pi`; project installs run with the selected cwd.
 
 ### Skill packs
-- The global configuration is `~/.pi/agent/skill-packs.json`; its default `libraryRoot` is `~/.pi-web/lib/skills`, whose skills live under `<libraryRoot>/.pi/skills/<skillKey>`. Workspace state is `<cwd>/.pi/skill-packs.json`, while applied files live under `<cwd>/.pi/skills/<skillKey>`.
-- A pack holds `{ skillKey, contentHash }` snapshots. `preview()` blocks missing or stale library skills and same-key/different-hash conflicts; `applyPlan()` rechecks the hash and rolls back newly created directories if a copy fails. Keep decisions in `lib/skill-pack-apply.ts` and state-only operations in `lib/workspace-packs.ts`.
-- `unapplyPack()` deletes every skill in the current pack definition that no remaining applied pack requires. This can delete a pre-existing skill that was skipped during apply; do not describe it as a label-only operation or bypass it with `removeAppliedPack()` in routes.
+- The global configuration is `~/.pi/agent/skill-packs.json`; its default `libraryRoot` is `~/.pi-web/lib/skills`. Library skills live under `<libraryRoot>/.pi/skills/<skillKey>`, while MCP metadata lives under `<libraryRoot>/.pi/mcp-servers/<serverKey>.mcp.json`. Workspace state is `<cwd>/.pi/skill-packs.json`; Pack-managed MCP entries live in `<cwd>/.pi/mcp.json`.
+- A Pack holds `{ skillKey, contentHash }` and `{ serverKey, configHash }` snapshots. `previewWorkspacePackChange()` computes the full Pack union, blocks missing/stale entries and same-key/different-hash conflicts, then `applyWorkspacePackChange()` atomically applies skills, MCP changes, and the receipt. Keep MCP reconciliation in `lib/mcp-pack-apply.ts`, combined transaction logic in `lib/skill-pack-apply.ts`, and state-only operations in `lib/workspace-packs.ts`.
+- MCP reconciliation never overwrites a team `.mcp.json`, unowned `.pi/mcp.json` entry, or a Pack-managed entry changed outside Pi-web. Unapply removes only entries no remaining Pack needs and that Pi-web still owns; skill removal retains the existing union-based behavior and can remove a pre-existing same-name skill that was skipped during apply.
+- Library MCP CRUD and Pack editing do not require the MCP adapter. Any workspace mutation with an MCP effect does; routes must enforce readiness, not only the UI.
 - Applying or removing a pack calls `SkillsConfig.onPacksChanged`, which increments `AppShell.packsRefreshKey`. `useAgentSession` owns the resulting reload: defer it while the agent runs, refresh `get_commands` after reload, and await the same Promise before the next prompt. Do not add competing reload effects in `ChatWindow`.
-- Tests: `lib/content-hash.test.mjs`, `lib/skill-library.test.mjs`, `lib/skill-packs-store.test.mjs`, `lib/workspace-packs.test.mjs`, `lib/skill-pack-apply.test.mjs`, and `components/ChatWindow.test.mjs`. See `docs/skill-packs.md` for the implementation-level behavior.
+- Tests: `lib/content-hash.test.mjs`, `lib/skill-library.test.mjs`, `lib/mcp-library.test.mjs`, `lib/skill-packs-store.test.mjs`, `lib/workspace-packs.test.mjs`, `lib/skill-pack-apply.test.mjs`, `lib/mcp-pack-apply.test.mjs`, and `components/ChatWindow.test.mjs`. See `docs/skill-packs.md` for the implementation-level behavior.
 
 ### Auth and model config
 - `ModelsConfig` combines models from `~/.pi/agent/models.json` with provider auth status from pi's `AuthStorage`/`ModelRegistry`.

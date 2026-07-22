@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, type CSSProperties, type ReactNode } from "react";
 import type { SessionInfo } from "@/lib/types";
-import { FileExplorer } from "./FileExplorer";
+import { WorkspaceFileTree } from "./WorkspaceFileTree";
 
 declare global {
   interface Window {
@@ -1134,11 +1134,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           </div>
           {explorerOpen && (
             <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-              <FileExplorer
+              <WorkspaceFileTree
                 cwd={selectedCwd ?? selectedCwdProp!}
                 onOpenFile={onOpenFile ?? (() => {})}
                 refreshKey={explorerKey}
                 onAtMention={onAtMention}
+                showToolbar={false}
+                allowMutations={false}
               />
             </div>
           )}

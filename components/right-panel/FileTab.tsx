@@ -15,8 +15,6 @@ export function FileTab({ tab, onOpenFile }: Props) {
       filePath={tab.filePath}
       cwd={tab.workspaceCwd}
       sourceSessionId={tab.sourceSessionId}
-      diffOldContent={tab.diffOldContent ?? null}
-      diffNewContent={tab.diffNewContent ?? null}
       onOpenFile={(filePath) => onOpenFile(filePath, getFileName(filePath), tab.sourceSessionId)}
     />
   );

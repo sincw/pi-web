@@ -143,14 +143,17 @@ export function AppShell() {
 
   const [initialSessionId] = useState<string | null>(() => searchParams.get("session"));
   const [activeCwd, setActiveCwd] = useState<string | null>(null);
+  const [activeProjectRoot, setActiveProjectRoot] = useState<string | null>(null);
   // True once the initial ?session= URL param has been resolved (or confirmed absent)
   const [initialSessionRestored, setInitialSessionRestored] = useState<boolean>(() => !searchParams.get("session"));
   // Suppresses sessionKey bump in handleCwdChange during the initial URL restore
   const suppressCwdBumpRef = useRef(false);
   const rightPanelCwd = activeCwd ?? selectedSession?.cwd ?? newSessionCwd ?? null;
+  const rightPanelProjectRoot = activeProjectRoot ?? selectedSession?.projectRoot ?? rightPanelCwd;
 
   const handleCwdChange = useCallback((cwd: string | null, projectRoot?: string | null) => {
     setActiveCwd(cwd);
+    setActiveProjectRoot(cwd ? projectRoot ?? cwd : null);
     // Skip if cwd is null (initial mount) or during the initial URL restore.
     if (!cwd) return;
     // A worktree selection has already started a new chat for this cwd. The
@@ -185,8 +188,9 @@ export function AppShell() {
 
   // A worktree is a distinct checkout. Do not keep the old AgentSession open:
   // it owns its original cwd even when both worktrees share a git project.
-  const handleWorktreeChange = useCallback((cwd: string) => {
+  const handleWorktreeChange = useCallback((cwd: string, projectRoot: string) => {
     setActiveCwd(cwd);
+    setActiveProjectRoot(projectRoot);
     setSelectedSession(null);
     setNewSessionCwd(cwd);
     setSessionKey((key) => key + 1);
@@ -200,6 +204,7 @@ export function AppShell() {
   const handleSelectSession = useCallback((session: SessionInfo, isRestore = false) => {
     setNewSessionCwd(null);
     setSelectedSession(session);
+    setActiveProjectRoot(session.projectRoot ?? session.cwd);
     setSessionKey((k) => k + 1);
     setSystemPrompt(null);
     setInitialSessionRestored(true);
@@ -220,6 +225,7 @@ export function AppShell() {
   const handleNewSession = useCallback((_sessionId: string, cwd: string) => {
     setSelectedSession(null);
     setNewSessionCwd(cwd);
+    setActiveProjectRoot(cwd);
     setSessionKey((k) => k + 1);
     setBranchTree([]);
     setBranchActiveLeafId(null);
@@ -248,6 +254,7 @@ export function AppShell() {
   const handleSessionCreated = useCallback((session: SessionInfo) => {
     setNewSessionCwd(null);
     setSelectedSession(session);
+    setActiveProjectRoot(session.projectRoot ?? session.cwd);
     setRefreshKey((k) => k + 1);
     hydrateSelectedSession(session.id);
     router.replace(`?session=${encodeURIComponent(session.id)}`, { scroll: false });
@@ -952,6 +959,7 @@ export function AppShell() {
       <RightPanel
         ref={rightPanelRef}
         workspaceCwd={rightPanelCwd}
+        workspaceProjectRoot={rightPanelProjectRoot}
         sourceSessionId={selectedSession?.id ?? null}
         explorerRefreshKey={explorerRefreshKey}
         onAtMention={handleAtMention}

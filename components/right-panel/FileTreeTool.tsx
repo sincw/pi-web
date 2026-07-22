@@ -1,6 +1,6 @@
 "use client";
 
-import { FileExplorer } from "../FileExplorer";
+import { WorkspaceFileTree } from "../WorkspaceFileTree";
 import type { RightPanelToolDefinition, RightPanelToolProps } from "./types";
 
 function FileTreeIcon({ size = 18 }: { size?: number }) {
@@ -12,13 +12,15 @@ function FileTreeIcon({ size = 18 }: { size?: number }) {
   );
 }
 
-function FileTreeTool({ cwd, explorerRefreshKey, onOpenFile, onAtMention }: RightPanelToolProps) {
+function FileTreeTool({ cwd, explorerRefreshKey, fileTreeRevealRequest, onOpenFile, onAtMention }: RightPanelToolProps) {
   return (
-    <FileExplorer
+    <WorkspaceFileTree
       cwd={cwd}
       onOpenFile={onOpenFile}
       refreshKey={explorerRefreshKey}
+      revealRequest={fileTreeRevealRequest}
       onAtMention={onAtMention}
+      allowMutations
     />
   );
 }

@@ -2,7 +2,7 @@
 // stdout through these functions so the rename/binary/untracked edge cases
 // stay in one testable place instead of inline in the Next route.
 
-export type DiffSection = "staged" | "unstaged";
+export type DiffSection = "staged" | "unstaged" | "branch";
 
 export interface ChangedFile {
   path: string;

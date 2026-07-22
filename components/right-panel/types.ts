@@ -1,21 +1,12 @@
 import type { ComponentType } from "react";
-import type { DiffSection } from "@/lib/git-diff-parse";
-
-export interface OpenDiffFileArgs {
-  filePath: string;
-  fileName: string;
-  oldContent: string;
-  newContent: string | null;
-  section: DiffSection;
-}
-
 export interface RightPanelToolProps {
   cwd: string;
   sourceSessionId: string | null;
   explorerRefreshKey: number;
+  fileTreeRevealRequest: { path: string; id: number } | null;
   onOpenFile: (filePath: string, fileName: string) => void;
-  onOpenDiffFile: (args: OpenDiffFileArgs) => void;
   onAtMention: (relativePath: string, isDir: boolean) => void;
+  onRevealInFileTree: (filePath: string) => void;
 }
 
 export interface RightPanelToolDefinition {
@@ -40,9 +31,6 @@ export interface FilePanelTab {
   filePath: string;
   workspaceCwd: string;
   sourceSessionId?: string | null;
-  diffOldContent?: string | null;
-  diffNewContent?: string | null;
-  diffSection?: DiffSection | null;
 }
 
 export type RightPanelTab = ToolPanelTab | FilePanelTab;

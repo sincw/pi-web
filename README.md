@@ -96,7 +96,7 @@ components/
   MessageView.tsx     # message, thinking, tool call/result rendering
   ModelsConfig.tsx    # model and auth configuration panel
   SkillsConfig.tsx    # skill management panel
-  FileExplorer.tsx    # file tree
+  WorkspaceFileTree.tsx # file tree
   FileViewer.tsx      # source, diff, image, audio, PDF, DOCX preview
 lib/
   rpc-manager.ts      # AgentSessionWrapper lifecycle and global registry
