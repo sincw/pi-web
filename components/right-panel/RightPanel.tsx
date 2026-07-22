@@ -4,14 +4,36 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { TabBar, type Tab } from "../TabBar";
 import { FileTab } from "./FileTab";
 import { getRightPanelTool, rightPanelTools } from "./tool-registry";
-import type { FilePanelTab, OpenDiffFileArgs, RightPanelHandle, RightPanelTab, ToolPanelTab } from "./types";
+import type { FilePanelTab, RightPanelHandle, RightPanelTab, ToolPanelTab } from "./types";
 
 interface Props {
   workspaceCwd: string | null;
+  workspaceProjectRoot: string | null;
   sourceSessionId: string | null;
   explorerRefreshKey: number;
   onAtMention: (relativePath: string, isDir: boolean) => void;
   onPanelOpened: () => void;
+}
+
+type SavedPanelState = {
+  fileTabs: FilePanelTab[];
+  toolTabs: ToolPanelTab[];
+  activeTabId: string | null;
+  panelOpen: boolean;
+};
+
+function loadPanelState(cwd: string): SavedPanelState | null {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(`pi-right-panel:${cwd}`) ?? "null") as Partial<SavedPanelState> | null;
+    if (!saved || !Array.isArray(saved.fileTabs) || !Array.isArray(saved.toolTabs)) return null;
+    const fileTabs = saved.fileTabs.filter((tab): tab is FilePanelTab => Boolean(tab && tab.type === "file" && typeof tab.id === "string" && typeof tab.label === "string" && typeof tab.filePath === "string" && typeof tab.workspaceCwd === "string"));
+    const toolTabs = saved.toolTabs.filter((tab): tab is ToolPanelTab => Boolean(tab && tab.type === "tool" && typeof tab.id === "string" && typeof tab.toolId === "string" && typeof tab.cwd === "string" && getRightPanelTool(tab.toolId)));
+    const tabs = [...toolTabs, ...fileTabs];
+    const activeTabId = typeof saved.activeTabId === "string" && tabs.some((tab) => tab.id === saved.activeTabId) ? saved.activeTabId : (tabs.length > 0 ? tabs[tabs.length - 1].id : null);
+    return { fileTabs, toolTabs, activeTabId, panelOpen: saved.panelOpen === true };
+  } catch {
+    return null;
+  }
 }
 
 function PanelIcon({ size = 17 }: { size?: number }) {
@@ -27,6 +49,14 @@ function AddToolIcon() {
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
       <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
     </svg>
+  );
+}
+
+function FullscreenIcon({ exit = false }: { exit?: boolean }) {
+  return exit ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4v5H4m11-5v5h5M9 20v-5H4m16 5v-5h-5" /></svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M9 20H4v-5m11 5h5v-5" /></svg>
   );
 }
 
@@ -57,6 +87,7 @@ function ToolLauncher({ disabled, onOpenTool }: { disabled: boolean; onOpenTool:
 
 export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPanel({
   workspaceCwd,
+  workspaceProjectRoot,
   sourceSessionId,
   explorerRefreshKey,
   onAtMention,
@@ -67,8 +98,11 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [fileTreeRevealRequest, setFileTreeRevealRequest] = useState<{ path: string; id: number } | null>(null);
+  const [restoredProject, setRestoredProject] = useState<string | null>(null);
+  const [panelFullscreen, setPanelFullscreen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const workspaceRef = useRef<string | null | undefined>(undefined);
+  const projectRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -80,24 +114,62 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
   }, [menuOpen]);
 
   useEffect(() => {
-    if (window.matchMedia("(min-width: 641px)").matches) setPanelOpen(true);
-  }, []);
+    if (!panelFullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPanelFullscreen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [panelFullscreen]);
 
   useEffect(() => {
-    const previousWorkspace = workspaceRef.current;
-    if (previousWorkspace !== undefined && previousWorkspace !== workspaceCwd) {
+    if (!workspaceCwd) {
       setFileTabs([]);
       setToolTabs([]);
       setActiveTabId(null);
+      setPanelOpen(false);
+      setPanelFullscreen(false);
       setMenuOpen(false);
+      setFileTreeRevealRequest(null);
+      setRestoredProject(null);
+      projectRef.current = null;
+      return;
     }
-    workspaceRef.current = workspaceCwd;
-  }, [workspaceCwd]);
+    const project = workspaceProjectRoot ?? workspaceCwd;
+    if (projectRef.current === project) {
+      setFileTabs((previous) => previous.map((tab) => ({ ...tab, workspaceCwd })));
+      setToolTabs((previous) => previous.map((tab) => ({ ...tab, cwd: workspaceCwd })));
+      setMenuOpen(false);
+      setFileTreeRevealRequest(null);
+      return;
+    }
+    const saved = loadPanelState(project);
+    setFileTabs(saved?.fileTabs ?? []);
+    setToolTabs(saved?.toolTabs ?? []);
+    setActiveTabId(saved?.activeTabId ?? null);
+    setPanelOpen(saved?.panelOpen ?? window.matchMedia("(min-width: 641px)").matches);
+    setMenuOpen(false);
+    setFileTreeRevealRequest(null);
+    projectRef.current = project;
+    setRestoredProject(project);
+  }, [workspaceCwd, workspaceProjectRoot]);
+
+  useEffect(() => {
+    const project = workspaceProjectRoot ?? workspaceCwd;
+    if (!project || restoredProject !== project) return;
+    try {
+      window.localStorage.setItem(`pi-right-panel:${project}`, JSON.stringify({ fileTabs, toolTabs, activeTabId, panelOpen }));
+    } catch {
+      // Storage can be unavailable in private browsing; tabs still work for this page.
+    }
+  }, [activeTabId, fileTabs, panelOpen, restoredProject, toolTabs, workspaceCwd, workspaceProjectRoot]);
 
   const openPanel = useCallback(() => {
     setPanelOpen(true);
     onPanelOpened();
   }, [onPanelOpened]);
+
+  const toggleFullscreen = useCallback(() => setPanelFullscreen((current) => !current), []);
 
   const openFile = useCallback((filePath: string, fileName: string, fileSourceSessionId?: string | null, cwd = workspaceCwd) => {
     if (!cwd) return;
@@ -109,28 +181,6 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
       }
       if (!fileSourceSessionId || existing.sourceSessionId === fileSourceSessionId) return previous;
       return previous.map((tab) => tab.id === id ? { ...tab, sourceSessionId: fileSourceSessionId, workspaceCwd: cwd } : tab);
-    });
-    setActiveTabId(id);
-    openPanel();
-  }, [openPanel, workspaceCwd]);
-
-  const openDiffFile = useCallback((args: OpenDiffFileArgs, cwd = workspaceCwd) => {
-    if (!cwd) return;
-    const id = `file:${args.filePath}#${args.section}`;
-    setFileTabs((previous) => {
-      const existing = previous.find((tab) => tab.id === id);
-      const nextTab: FilePanelTab = {
-        id,
-        type: "file",
-        label: args.fileName,
-        filePath: args.filePath,
-        diffOldContent: args.oldContent,
-        diffNewContent: args.newContent,
-        diffSection: args.section,
-        workspaceCwd: cwd,
-      };
-      if (!existing) return [...previous, nextTab];
-      return previous.map((tab) => tab.id === id ? nextTab : tab);
     });
     setActiveTabId(id);
     openPanel();
@@ -148,6 +198,12 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
     setMenuOpen(false);
     openPanel();
   }, [openPanel, workspaceCwd]);
+
+  const revealInFileTree = useCallback((filePath: string) => {
+    if (!workspaceCwd) return;
+    setFileTreeRevealRequest((current) => ({ path: filePath, id: (current?.id ?? 0) + 1 }));
+    openTool("file-tree");
+  }, [openTool, workspaceCwd]);
 
   const closeTab = useCallback((tabId: string) => {
     if (tabId.startsWith("tool:")) {
@@ -180,9 +236,6 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
         label: tab.label,
         filePath: tab.filePath,
         sourceSessionId: tab.sourceSessionId,
-        diffOldContent: tab.diffOldContent,
-        diffNewContent: tab.diffNewContent,
-        diffSection: tab.diffSection,
       }];
     }
     const tool = getRightPanelTool(tab.toolId);
@@ -198,7 +251,7 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
   return (
     <>
       <div
-        className={`right-panel-container glass-file-panel${panelOpen ? " right-panel-open" : " right-panel-closed"}`}
+        className={`right-panel-container glass-file-panel${panelOpen ? " right-panel-open" : " right-panel-closed"}${panelFullscreen ? " right-panel-fullscreen" : ""}`}
         style={{ display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border)", background: "var(--bg)" }}
       >
         <div className="right-panel-toolbar">
@@ -213,7 +266,10 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
             )}
           </div>
           <div ref={menuRef} className="right-panel-toolbar-actions">
-            <button type="button" className="right-panel-action" onClick={() => { setPanelOpen(false); setMenuOpen(false); }} title="关闭工具面板" aria-label="关闭工具面板">
+            <button type="button" className="right-panel-action" onClick={toggleFullscreen} title={panelFullscreen ? "退出全屏" : "全屏"} aria-label={panelFullscreen ? "退出全屏" : "全屏"}>
+              <FullscreenIcon exit={panelFullscreen} />
+            </button>
+            <button type="button" className="right-panel-action" onClick={() => { setPanelFullscreen(false); setPanelOpen(false); setMenuOpen(false); }} title="关闭工具面板" aria-label="关闭工具面板">
               <PanelIcon size={16} />
             </button>
             <button type="button" className="right-panel-action" onClick={() => setMenuOpen((open) => !open)} title="新建工具" aria-label="新建工具" aria-expanded={menuOpen}>
@@ -242,9 +298,10 @@ export const RightPanel = forwardRef<RightPanelHandle, Props>(function RightPane
                 cwd={activeToolTab.cwd}
                 sourceSessionId={sourceSessionId}
                 explorerRefreshKey={explorerRefreshKey}
+                fileTreeRevealRequest={fileTreeRevealRequest}
                 onOpenFile={(filePath, fileName) => openFile(filePath, fileName, sourceSessionId, activeToolTab.cwd)}
-                onOpenDiffFile={(args) => openDiffFile(args, activeToolTab.cwd)}
                 onAtMention={onAtMention}
+                onRevealInFileTree={revealInFileTree}
               />
             </div>
           ) : activeFileTab ? (

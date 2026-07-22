@@ -92,7 +92,7 @@ components/
   MessageView.tsx     # 消息、thinking、tool call/result 渲染
   ModelsConfig.tsx    # 模型和认证配置面板
   SkillsConfig.tsx    # 技能管理面板
-  FileExplorer.tsx    # 文件树
+  WorkspaceFileTree.tsx # 文件树
   FileViewer.tsx      # 源码、diff、图片、音频、PDF、DOCX 预览
 lib/
   rpc-manager.ts      # AgentSessionWrapper 生命周期和全局 registry

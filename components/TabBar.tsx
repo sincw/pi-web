@@ -9,11 +9,6 @@ export interface Tab {
   filePath?: string;
   icon?: ReactNode;
   sourceSessionId?: string | null;
-  diffOldContent?: string | null;
-  // Frozen per-file diff: right side is the index (Staged) or worktree (Unstaged).
-  diffNewContent?: string | null;
-  // When set, the tab is a per-file diff and its label is annotated with the section.
-  diffSection?: import("@/lib/git-diff-parse").DiffSection | null;
 }
 
 interface Props {
@@ -75,7 +70,7 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
               }}
               title={tab.filePath ?? tab.label}
             >
-              {tab.label}{tab.diffSection ? ` (${tab.diffSection})` : ""}
+              {tab.label}
             </span>
             <button
               onClick={(e) => { e.stopPropagation(); onCloseTab(tab.id); }}

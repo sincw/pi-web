@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
-import { getAllowedFileRoots, isFilePathAllowed } from "@/lib/file-access";
+import { getAllowedFileRoots, isFilePathAllowed, isWindowsAbsolutePath } from "@/lib/file-access";
 import { parseDiffSection, parseUntracked, type DiffSection } from "@/lib/git-diff-parse";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +36,14 @@ function git(args: string[], cwd: string): Promise<string> {
   });
 }
 
+function repositoryPath(value: string) {
+  const normalized = value.trim().replace(/\\/g, "/");
+  if (!normalized || normalized.startsWith("/") || isWindowsAbsolutePath(normalized) || normalized.split("/").some((part) => !part || part === "." || part === "..")) {
+    return null;
+  }
+  return normalized;
+}
+
 export async function GET(request: NextRequest) {
   const cwd = request.nextUrl.searchParams.get("cwd");
   if (!cwd) return NextResponse.json({ error: "cwd required" }, { status: 400 });
@@ -52,26 +60,32 @@ export async function GET(request: NextRequest) {
 
   const filePath = request.nextUrl.searchParams.get("file");
   const sectionParam = request.nextUrl.searchParams.get("section");
-  const section: DiffSection = sectionParam === "staged" ? "staged" : "unstaged";
+  const section: DiffSection = sectionParam === "staged" || sectionParam === "branch" ? sectionParam : "unstaged";
   // For renames (status R) the dest path may not exist on the baseline side;
   // the source path does. Caller passes `source` for R entries.
   const source = request.nextUrl.searchParams.get("source");
 
   // File mode: return the content for both sides of a per-file diff.
   if (filePath) {
-    // A path that escapes cwd via ../ would still be repo-scoped by git's own
-    // `git show`, but we reject it explicitly to mirror /api/files' rule.
-    if (!isFilePathAllowed(path.join(cwd, filePath), allowedRoots)) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    const targetPath = repositoryPath(filePath);
+    const baselinePath = repositoryPath(source ?? filePath);
+    if (!targetPath || !baselinePath) return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
+    if (section === "branch") {
+      const base = (await git(["merge-base", "@{upstream}", "HEAD"], cwd)).trim();
+      if (!base) return NextResponse.json({ error: "This branch has no upstream to compare against" }, { status: 409 });
+      const [oldContent, newContent] = await Promise.all([
+        git(["show", `${base}:${baselinePath}`], cwd),
+        git(["show", `HEAD:${targetPath}`], cwd),
+      ]);
+      return NextResponse.json({ oldContent, newContent, baseRef: base });
     }
-    const baselinePath = source ?? filePath;
     // Staged diff = index vs HEAD:  old = HEAD:baseline  new = :filePath
     // Unstaged diff = worktree vs index: old = :baseline  new = worktree file
     // A missing side reads as "" (untracked / deleted / new file).
     if (section === "staged") {
       const [oldContent, newContent] = await Promise.all([
         git(["show", `HEAD:${baselinePath}`], cwd),
-        git(["show", `:${filePath}`], cwd),
+        git(["show", `:${targetPath}`], cwd),
       ]);
       return NextResponse.json({ oldContent, newContent });
     }
@@ -79,7 +93,7 @@ export async function GET(request: NextRequest) {
     // preview cap doesn't blank out large files (e.g. package-lock.json).
     // Cap it ourselves — past a few MB the browser diff would lock up.
     let newContent = "";
-    const fullPath = path.join(cwd, filePath);
+    const fullPath = path.join(cwd, targetPath);
     try {
       const st = fs.statSync(fullPath);
       if (st.size <= MAX_READ_BYTES) {
@@ -98,19 +112,38 @@ export async function GET(request: NextRequest) {
 
   // List mode: two sections, mirroring VS Code's Source Control. All five
   // spawns are independent → one concurrent round, not five serial ones.
-  const [stagedNs, stagedNum, unstagedNs, unstagedNum, untrackedRaw] = await Promise.all([
+  if (request.nextUrl.searchParams.get("compare") === "upstream") {
+    const base = (await git(["merge-base", "@{upstream}", "HEAD"], cwd)).trim();
+    if (!base) return NextResponse.json({ error: "This branch has no upstream to compare against" }, { status: 409 });
+    const [nameStatus, numstat, upstream] = await Promise.all([
+      git(["diff", "--name-status", `${base}...HEAD`], cwd),
+      git(["diff", "--numstat", `${base}...HEAD`], cwd),
+      git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], cwd),
+    ]);
+    return NextResponse.json({ branchChanges: parseDiffSection(nameStatus, numstat), baseRef: upstream.trim() || base });
+  }
+
+  const [stagedNs, stagedNum, unstagedNs, unstagedNum, untrackedRaw, branch, upstream, divergence] = await Promise.all([
     git(["diff", "--cached", "--name-status"], cwd),
     git(["diff", "--cached", "--numstat"], cwd),
     git(["diff", "--name-status"], cwd),
     git(["diff", "--numstat"], cwd),
     git(["ls-files", "--others", "--exclude-standard"], cwd),
+    git(["branch", "--show-current"], cwd),
+    git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], cwd),
+    git(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"], cwd),
   ]);
   const staged = parseDiffSection(stagedNs, stagedNum);
   const unstagedTracked = parseDiffSection(unstagedNs, unstagedNum);
   const untracked = parseUntracked(untrackedRaw);
+  const [behind = "0", ahead = "0"] = divergence.trim().split(/\s+/);
 
   return NextResponse.json({
     staged,
     unstaged: [...unstagedTracked, ...untracked].sort((a, b) => a.path.localeCompare(b.path)),
+    branch: branch.trim() || "HEAD",
+    upstream: upstream.trim(),
+    ahead: Number(ahead) || 0,
+    behind: Number(behind) || 0,
   });
 }
