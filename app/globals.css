@@ -620,6 +620,7 @@ span.linenumber {
 
 .right-panel-toolbar {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: stretch;
   flex: 0 0 44px;
@@ -637,6 +638,10 @@ span.linenumber {
 
 .right-panel-toolbar-tabs > div:first-child {
   align-self: center;
+  flex: 1 1 0 !important;
+  min-width: 0;
+  overflow-x: scroll !important;
+  scrollbar-gutter: stable;
 }
 
 .right-panel-toolbar-actions {
