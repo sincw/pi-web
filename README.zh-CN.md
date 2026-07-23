@@ -49,7 +49,7 @@ PI_WEB_NO_OPEN=1 pi-web         # 适用于后台服务或开机自启
 - **模型配置**：Models 面板读写 pi agent 目录下的 `models.json`，模型列表和默认模型由 pi 的配置解析得到。
 - **文件访问**：文件浏览和预览面向当前选择的项目目录，以及会话中已出现过的工作目录。
 - **Git worktree**：什么时候显示切换器、新建目录在哪里、删除会影响什么，见 [pi-web 里的 Worktree](./docs/worktrees.zh-CN.md)。
-- **Fork 与会话内分支不同**：Fork 会创建新的 `.jsonl` 文件；“Edit from here” 是同一会话文件里的分支。
+- **Fork 与会话内分支不同**：Fork 会创建新的 `.jsonl` 文件；“Fork from here” 是同一会话文件里的分支。
 
 ## 开发
 

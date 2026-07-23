@@ -1058,7 +1058,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       {/* Recent conversations */}
       <div className="sidebar-session-section" style={{ flex: explorerOpen && (selectedCwdProp || selectedCwd) ? "1 1 0" : "1 1 auto", minHeight: 80, background: isMobile ? "var(--overlay-bg)" : undefined }}>
         <div className="sidebar-session-heading">
-          <span>Recent sessions</span>
+          <span style={{ paddingLeft: 10 }}>Recent sessions</span>
           <button
             type="button"
             onClick={() => loadSessions(false)}
