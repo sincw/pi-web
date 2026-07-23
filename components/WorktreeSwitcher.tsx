@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GitBranch } from "@/lib/git-branches";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface WorktreeEntry {
   path: string;
@@ -36,6 +37,7 @@ function WorktreeIcon({ size = 11 }: { size?: number }) {
 }
 
 export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) {
+  const isMobile = useIsMobile();
   const [state, setState] = useState<WorktreeState | null>(null);
   const [open, setOpen] = useState(false);
   const [newWorktreeOpen, setNewWorktreeOpen] = useState(false);
@@ -251,7 +253,7 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
       {open && (
         <div className="overlay-surface" style={{
           position: "absolute",
-          right: 0,
+          ...(isMobile ? { left: "50%", transform: "translateX(-50%)" } : { right: 0 }),
           bottom: "calc(100% + 6px)",
           zIndex: 110,
           width: "min(320px, calc(100vw - 24px))",

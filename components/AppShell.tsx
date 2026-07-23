@@ -346,7 +346,7 @@ export function AppShell() {
         }}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="sidebar-utility-bar" style={{ padding: "8px", flexShrink: 0 }}>
+      <div className="sidebar-utility-bar" style={{ padding: "8px", flexShrink: 0, background: isMobile ? "var(--overlay-bg)" : undefined }}>
         <button
           type="button"
           className="sidebar-settings-action"

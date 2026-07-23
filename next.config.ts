@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
     "@earendil-works/pi-tui",
     "node-pty",
   ],
-  allowedDevOrigins: ['127.0.0.1', '192.168.*.*'],
+  allowedDevOrigins: ['127.0.0.1', '192.168.*.*', 'home.sinc.lol'],
   async headers() {
     return [
       {

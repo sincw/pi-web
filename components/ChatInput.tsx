@@ -1688,20 +1688,26 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 More
               </button>
             )}
-            <div className={isMobile ? "overlay-surface" : undefined} style={{
-              display: isMobile ? (controlsMenuOpen ? "flex" : "none") : "flex",
-              alignItems: "center",
-              gap: isMobile ? 1 : 2,
+            <div style={{
+              display: isMobile ? (controlsMenuOpen ? "block" : "none") : "contents",
               ...(isMobile ? {
                 position: "absolute",
                 right: 0,
                 bottom: 0,
                 zIndex: 60,
-                padding: 1,
+              } : null),
+            }}>
+            <div className={isMobile ? "overlay-surface chat-input-more-controls" : undefined} style={{
+              display: "flex",
+              alignItems: "center",
+              gap: isMobile ? 1 : 2,
+              ...(isMobile ? {
+                position: "relative",
+                padding: "1px 37px 1px 1px",
                 width: "max-content",
-                maxWidth: "calc(100vw - 32px)",
-                flexWrap: "nowrap",
-                justifyContent: "flex-end",
+                maxWidth: "80vw",
+                flexWrap: "wrap",
+                justifyContent: "flex-start",
                 border: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
                 borderRadius: 10,
                 background: "color-mix(in srgb, var(--bg-panel) 92%, var(--bg))",
@@ -1873,14 +1879,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               </div>
             )}
 
-            {onCwdChange && (
-              <WorktreeSwitcher
-                cwd={cwd}
-                disabled={isStreaming || isCompacting}
-                onCwdChange={onCwdChange}
-              />
-            )}
-
             {!isStreaming && onCompact && (
               <div style={{ position: "relative" }}>
                 {compactError && (
@@ -2005,47 +2003,57 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 )}
               </button>
             )}
-            {isMobile && controlsMenuOpen && (
-              <button
-                type="button"
-                title="Collapse controls"
-                aria-label="Collapse controls"
-                aria-expanded={true}
-                onClick={() => {
-                  setToolDropdownOpen(false);
-                  setThinkingDropdownOpen(false);
-                  setControlsMenuOpen(false);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 36,
-                  height: 32,
-                  padding: 0,
-                  marginLeft: 0,
-                  background: "var(--bg-hover)",
-                  border: "none",
-                  borderLeft: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
-                  borderRadius: "0 9px 9px 0",
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  transition: "background 0.12s, color 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-selected)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
+            {onCwdChange && (
+              <div className="chat-input-worktree-row">
+                <WorktreeSwitcher
+                  cwd={cwd}
+                  disabled={isStreaming || isCompacting}
+                  onCwdChange={onCwdChange}
+                />
+              </div>
             )}
             </div>
+            {isMobile && controlsMenuOpen && (
+              <div style={{ position: "absolute", top: 1, right: 1, zIndex: 1 }}>
+                <button
+                  type="button"
+                  title="Collapse controls"
+                  aria-label="Collapse controls"
+                  aria-expanded={true}
+                  onClick={() => {
+                    setToolDropdownOpen(false);
+                    setThinkingDropdownOpen(false);
+                    setControlsMenuOpen(false);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 36,
+                    height: 32,
+                    padding: 0,
+                    background: "var(--bg-hover)",
+                    border: "none",
+                    borderRadius: 9,
+                    color: "var(--text)",
+                    cursor: "pointer",
+                    transition: "background 0.12s, color 0.12s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--bg-selected)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "var(--bg-hover)";
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
           </div>
 
         </div>

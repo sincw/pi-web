@@ -476,7 +476,7 @@ function ReviewTool({ cwd, onAtMention, onOpenFile, onRevealInFileTree }: RightP
 export const reviewTool: RightPanelToolDefinition = {
   id: "review",
   label: "审查",
-  description: "查看和管理代码变更与提交历史",
+  description: "查看和管理代码变更",
   Icon: ReviewIcon,
   Component: ReviewTool,
 };
