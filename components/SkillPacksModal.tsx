@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type {
   LibrarySkillInfo,
@@ -297,6 +297,8 @@ function ManageTab({
         </div>
       </aside>
 
+      <div className="skill-packs-divider" aria-hidden="true" />
+
       <main className="skill-packs-editor">
         {!detail ? (
           <div className="skill-packs-editor-empty">
@@ -360,7 +362,8 @@ function PackEditor({
   }, [mcpServers, libraryMcpServers]);
 
   return (
-    <div className="skill-pack-form">
+    <>
+      <div className="skill-pack-form">
       <div className="skill-pack-form-fields">
         <label>
           <span>Name</span>
@@ -368,11 +371,10 @@ function PackEditor({
         </label>
         <label>
           <span>Description</span>
-          <textarea
+          <input
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder="Describe this pack"
-            rows={2}
           />
         </label>
       </div>
@@ -380,7 +382,16 @@ function PackEditor({
       <section className="skill-pack-section">
         <div className="skill-pack-section-heading">
           <span>Included skills</span>
-          <span>{skills.length}</span>
+          <LibraryPicker
+            compact
+            items={availableSkills}
+            getKey={(skill) => skill.skillKey}
+            label="Add skill"
+            emptyLabel="No available skills"
+            disabled={saving}
+            onPick={(skill) => setSkills((current) => [...current, { skillKey: skill.skillKey, contentHash: skill.contentHash }])}
+          />
+          <span className="skill-pack-count">{skills.length}</span>
         </div>
         {skills.length === 0 ? (
           <p className="skill-pack-empty">No skills in this pack</p>
@@ -408,13 +419,21 @@ function PackEditor({
             })}
           </div>
         )}
-        <label className="skill-pack-select"><span className="sr-only">Add skill from library</span><select value="" onChange={(event) => { const skill = availableSkills.find((item) => item.skillKey === event.target.value); if (skill) setSkills((current) => [...current, { skillKey: skill.skillKey, contentHash: skill.contentHash }]); }} disabled={saving || availableSkills.length === 0}><option value="">{availableSkills.length ? "+ Add skill" : "No available skills"}</option>{availableSkills.map((skill) => <option key={skill.skillKey} value={skill.skillKey}>{skill.name}</option>)}</select></label>
       </section>
 
       <section className="skill-pack-section">
         <div className="skill-pack-section-heading">
           <span>MCP servers</span>
-          <span>{mcpServers.length}</span>
+          <LibraryPicker
+            compact
+            items={availableMcpServers}
+            getKey={(server) => server.serverKey}
+            label="Add MCP server"
+            emptyLabel="No available MCP servers"
+            disabled={saving}
+            onPick={(server) => setMcpServers((current) => [...current, { serverKey: server.serverKey, configHash: server.configHash }])}
+          />
+          <span className="skill-pack-count">{mcpServers.length}</span>
         </div>
         {mcpServers.length === 0 ? (
           <p className="skill-pack-empty">No MCP servers in this pack</p>
@@ -433,8 +452,8 @@ function PackEditor({
             })}
           </div>
         )}
-        <label className="skill-pack-select"><span className="sr-only">Add MCP server from library</span><select value="" onChange={(event) => { const server = availableMcpServers.find((item) => item.serverKey === event.target.value); if (server) setMcpServers((current) => [...current, { serverKey: server.serverKey, configHash: server.configHash }]); }} disabled={saving || availableMcpServers.length === 0}><option value="">{availableMcpServers.length ? "+ Add MCP server" : "No available MCP servers"}</option>{availableMcpServers.map((server) => <option key={server.serverKey} value={server.serverKey}>{server.name}</option>)}</select></label>
       </section>
+      </div>
 
       <footer className="skill-pack-actions">
         <button
@@ -454,6 +473,113 @@ function PackEditor({
           Delete
         </button>
       </footer>
+    </>
+  );
+}
+
+function LibraryPicker<T extends { name: string; description: string }>({
+  items,
+  getKey,
+  label,
+  emptyLabel,
+  compact = false,
+  disabled,
+  onPick,
+}: {
+  items: T[];
+  getKey: (item: T) => string;
+  label: string;
+  emptyLabel: string;
+  compact?: boolean;
+  disabled: boolean;
+  onPick: (item: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = `skill-pack-${label.toLowerCase().replaceAll(" ", "-")}-menu`;
+  const visibleItems = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return items;
+    return items.filter((item) =>
+      [item.name, getKey(item), item.description].some((value) => value.toLowerCase().includes(normalizedQuery)),
+    );
+  }, [getKey, items, query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (!pickerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", close);
+    requestAnimationFrame(() => inputRef.current?.focus());
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const close = () => {
+    setOpen(false);
+    setQuery("");
+  };
+
+  return (
+    <div className={`skill-pack-picker${compact ? " skill-pack-picker-compact" : ""}`} ref={pickerRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="skill-pack-picker-trigger"
+        onClick={() => (open ? close() : setOpen(true))}
+        disabled={disabled || items.length === 0}
+        title={items.length ? label : emptyLabel}
+        aria-label={items.length ? label : emptyLabel}
+        aria-expanded={open}
+        aria-controls={menuId}
+      >
+        {compact ? "+" : items.length ? label : emptyLabel}
+      </button>
+      {open && (
+        <div className="skill-pack-picker-menu" id={menuId}>
+          <label className="sr-only" htmlFor={`${menuId}-search`}>Search {label.toLowerCase()}</label>
+          <input
+            ref={inputRef}
+            id={`${menuId}-search`}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                close();
+                triggerRef.current?.focus();
+              }
+            }}
+            placeholder={`Search ${label.toLowerCase()}`}
+          />
+          <div className="skill-pack-picker-options" role="listbox" aria-label={label}>
+            {visibleItems.length === 0 ? (
+              <p>No matching items</p>
+            ) : (
+              visibleItems.map((item) => (
+                <button
+                  key={getKey(item)}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onClick={() => {
+                    onPick(item);
+                    close();
+                  }}
+                >
+                  <span>{item.name}</span>
+                  <small>{item.description || getKey(item)}</small>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
