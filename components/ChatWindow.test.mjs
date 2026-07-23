@@ -16,3 +16,10 @@ test("waits for a pending pack reload before sending", async () => {
   assert.match(hook, /const ensurePackSkillsReloaded = useCallback/);
   assert.match(handleSend, /await ensurePackSkillsReloaded\(\);/);
 });
+
+test("collapses mobile pack badges to the first pack", async () => {
+  const chatInput = await readFile(new URL("./ChatInput.tsx", import.meta.url), "utf8");
+
+  assert.match(chatInput, /isMobile \? appliedPacks\.slice\(0, 1\) : appliedPacks/);
+  assert.match(chatInput, /isMobile && appliedPacks\.length > 1 && "\\u22ef"/);
+});

@@ -1492,18 +1492,20 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     Add Pack
                   </button>
                 )}
-                {appliedPacks.map((p) => (
+                {(isMobile ? appliedPacks.slice(0, 1) : appliedPacks).map((p) => (
                   <button
                     key={p.packId}
                     onClick={onOpenSkills}
-                    title={p.status === "partial" ? "Some skills were skipped" : "Applied pack"}
+                    title={isMobile && appliedPacks.length > 1
+                      ? `Applied packs: ${appliedPacks.map((pack) => pack.packName || pack.packId).join(", ")}`
+                      : p.status === "partial" ? "Some skills were skipped" : "Applied pack"}
                     style={{
                       flexShrink: 0,
                       padding: "3px 10px",
                       borderRadius: 12,
                       border: "1px solid var(--border)",
-                      background: p.status === "partial" ? "rgba(217,119,6,0.10)" : "rgba(34,197,94,0.08)",
-                      color: p.status === "partial" ? "#d97706" : "#16a34a",
+                      background: p.status === "partial" ? "rgba(217,119,6,0.10)" : "color-mix(in srgb, var(--accent) 12%, transparent)",
+                      color: p.status === "partial" ? "#d97706" : "var(--accent)",
                       fontSize: 11,
                       cursor: onOpenSkills ? "pointer" : "default",
                       maxWidth: 140,
@@ -1513,6 +1515,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                     }}
                   >
                     {p.packName || p.packId}
+                    {isMobile && appliedPacks.length > 1 && "\u22ef"}
                     {p.status === "partial" && <span style={{ marginLeft: 4 }}>· 有跳过</span>}
                   </button>
                 ))}

@@ -1582,7 +1582,7 @@ html.dark .terminal-tool-xterm .xterm-viewport {
 
 .skills-market,
 .skills-library {
-  --skills-accent: #705ef6;
+  --skills-accent: var(--accent);
   height: 100%;
   overflow: auto;
   padding: 22px;
@@ -2207,7 +2207,7 @@ html.dark .terminal-tool-xterm .xterm-viewport {
 }
 
 .skill-packs-modal {
-  --skills-accent: #705ef6;
+  --skills-accent: var(--accent);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3073,8 +3073,8 @@ html.dark .user-message-bubble {
   --app-canvas: #f3f5fc;
   --bg: rgba(255, 255, 255, 0.76);
   --bg-panel: rgba(255, 255, 255, 0.68);
-  --bg-hover: rgba(104, 88, 242, 0.08);
-  --bg-selected: rgba(112, 94, 246, 0.13);
+  --bg-hover: rgba(134, 117, 245, 0.08);
+  --bg-selected: rgba(134, 117, 245, 0.13);
   --border: rgba(111, 122, 159, 0.14);
   --glass-border: rgba(255, 255, 255, 0.82);
   --surface-raised: rgba(255, 255, 255, 0.86);
@@ -3083,14 +3083,14 @@ html.dark .user-message-bubble {
   --text: #1c2031;
   --text-muted: #74809c;
   --text-dim: #9aa4bd;
-  --accent: #705ef6;
-  --accent-hover: #5f4bea;
-  --accent-gradient: #7463f2;
-  --user-bg: rgba(112, 94, 246, 0.1);
-  --user-border: rgba(112, 94, 246, 0.2);
+  --accent: #8675f5;
+  --accent-hover: #7564e2;
+  --accent-gradient: #8675f5;
+  --user-bg: rgba(134, 117, 245, 0.1);
+  --user-border: rgba(134, 117, 245, 0.2);
   --assistant-bg: rgba(255, 255, 255, 0.54);
   --tool-bg: rgba(247, 248, 255, 0.72);
-  --bg-subtle: rgba(112, 94, 246, 0.045);
+  --bg-subtle: rgba(134, 117, 245, 0.045);
   --shadow-window: 0 16px 40px rgba(93, 105, 160, 0.1), 0 3px 8px rgba(93, 105, 160, 0.04);
   --shadow-float: 0 14px 32px rgba(93, 105, 160, 0.16), 0 3px 8px rgba(93, 105, 160, 0.06);
 }
@@ -3348,6 +3348,91 @@ html.dark .user-message-bubble {
   color: var(--text);
   font-size: 28px;
   font-weight: 700;
+}
+
+html.dark {
+  --app-canvas: #0b0e15;
+  --bg: rgba(16, 19, 30, 0.84);
+  --bg-panel: rgba(20, 24, 37, 0.78);
+  --bg-hover: rgba(255, 255, 255, 0.075);
+  --bg-selected: rgba(132, 113, 255, 0.22);
+  --border: rgba(185, 195, 230, 0.16);
+  --glass-border: rgba(193, 203, 241, 0.14);
+  --surface-raised: rgba(27, 31, 47, 0.92);
+  --overlay-bg: #141826;
+  --overlay-border: rgba(193, 203, 241, 0.2);
+  --text: #f3f5ff;
+  --text-muted: #b3bdd6;
+  --text-dim: #7f8aa5;
+  --accent: #8675f5;
+  --accent-hover: #9a8bfd;
+  --accent-gradient: #8675f5;
+  --user-bg: rgba(134, 117, 245, 0.16);
+  --user-border: rgba(154, 139, 253, 0.28);
+  --assistant-bg: rgba(28, 33, 48, 0.68);
+  --tool-bg: rgba(24, 28, 42, 0.8);
+  --bg-subtle: rgba(180, 190, 255, 0.07);
+  --shadow-window: 0 18px 48px rgba(0, 0, 0, 0.38), 0 2px 8px rgba(0, 0, 0, 0.26);
+  --shadow-float: 0 14px 32px rgba(0, 0, 0, 0.4), 0 3px 8px rgba(0, 0, 0, 0.26);
+}
+
+html.dark .glass-sidebar,
+html.dark .workspace-main,
+html.dark .glass-file-panel {
+  background: rgba(15, 18, 28, 0.78) !important;
+}
+
+html.dark .workspace-toolbar,
+html.dark .right-panel-toolbar {
+  background: rgba(20, 24, 37, 0.82) !important;
+}
+
+html.dark .workspace-chat-surface {
+  background-image: url("/agent-ui/chat-background-dark.png");
+}
+
+html.dark .chat-workspace.chat-session-workspace {
+  background: rgba(10, 13, 21, 0.9);
+}
+
+html.dark .sidebar-header,
+html.dark .sidebar-utility-bar {
+  background: rgba(20, 24, 37, 0.52);
+}
+
+html.dark .sidebar-session-item.is-selected {
+  --text-muted: #c0c8e1;
+  --text-dim: #98a4c3;
+}
+
+html.dark .chat-version-list span {
+  background: rgba(138, 120, 255, 0.16);
+  color: var(--text-muted);
+}
+
+html.dark .chat-input-field {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+html.dark .chat-input-field:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 12px 28px rgba(0, 0, 0, 0.36) !important;
+}
+
+html.dark .right-panel-launcher {
+  background-color: #0c0f18;
+  background-image: url("/agent-ui/tools-background-dark.png");
+}
+
+html.dark .right-panel-launcher-item {
+  border-color: rgba(171, 157, 255, 0.18);
+  background: rgba(24, 28, 42, 0.86);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+html.dark .right-panel-launcher-item:not(:disabled):hover {
+  border-color: rgba(171, 157, 255, 0.42);
+  background: rgba(32, 37, 55, 0.94);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
 }
 
 @media (min-width: 641px) {

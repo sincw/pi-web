@@ -296,12 +296,12 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = open ? "var(--text)" : "var(--text-muted)"; }}
-          title="Session branches (not Git branches)"
-          aria-label="Session branches"
+          title="Session Tree (not Git branches)"
+          aria-label="Session Tree"
           aria-pressed={open}
         >
           {branchIcon}
-          {!compact && <span>Session branches</span>}
+          {!compact && <span>Session Tree</span>}
         </button>
         {open && dropdownPos && (
           <div className="overlay-surface" style={{
@@ -358,7 +358,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
         }}
       >
         {branchIcon}
-        <span style={{ color: "var(--text-muted)" }}>Session branches</span>
+        <span style={{ color: "var(--text-muted)" }}>Session Tree</span>
         {chevron}
       </button>
 

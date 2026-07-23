@@ -18,6 +18,19 @@ import { resolveLocalFileHref } from "@/lib/file-links";
 import { markdownPreviewRehypePlugins, markdownPreviewRemarkPlugins } from "@/lib/markdown";
 import { InlineDiff } from "./InlineDiff";
 
+const PRISM_PRE_SELECTOR = 'pre[class*="language-"]';
+const darkPrismPreStyle = { ...vscDarkPlus[PRISM_PRE_SELECTOR] };
+delete darkPrismPreStyle.background;
+
+const lightPrismTheme = {
+  ...vs,
+  [PRISM_PRE_SELECTOR]: { ...vs[PRISM_PRE_SELECTOR], backgroundColor: "var(--bg)" },
+};
+const darkPrismTheme = {
+  ...vscDarkPlus,
+  [PRISM_PRE_SELECTOR]: { ...darkPrismPreStyle, backgroundColor: "var(--bg)" },
+};
+
 interface Props {
   filePath: string;
   cwd?: string;
@@ -764,7 +777,7 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props) {
         ) : (
           <SyntaxHighlighter
             language={data.language === "text" ? "plaintext" : data.language}
-            style={isDark ? vscDarkPlus : vs}
+            style={isDark ? darkPrismTheme : lightPrismTheme}
             showLineNumbers
             lineNumberStyle={{
               color: "var(--text-dim)",
@@ -775,7 +788,6 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props) {
             customStyle={{
               margin: 0,
               padding: "12px 0",
-              background: "var(--bg)",
               fontSize: 13,
               lineHeight: 1.6,
               fontFamily: "var(--font-mono)",
