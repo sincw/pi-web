@@ -1448,8 +1448,14 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     userScrollIntentUntilRef.current = Date.now() + USER_SCROLL_INTENT_MS;
   }, []);
 
-  const handleScrollPositionChange = useCallback(() => {
+  const handleScrollPositionChange = useCallback((event: Event) => {
     if (!agentRunningRef.current) return;
+    const container = event.currentTarget as HTMLDivElement;
+    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 1;
+    if (atBottom) {
+      completionScrollAllowedRef.current = true;
+      return;
+    }
     if (Date.now() < ignoreProgrammaticScrollUntilRef.current) return;
     if (Date.now() > userScrollIntentUntilRef.current) return;
     completionScrollAllowedRef.current = false;
@@ -1536,6 +1542,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       }
     }
   }, [messages.length, agentRunning, scrollToBottom, scrollUserMsgToTop]);
+
+  useEffect(() => {
+    if (streamState.streamingMessage && completionScrollAllowedRef.current) {
+      scrollToBottom("instant");
+    }
+  }, [streamState.streamingMessage, scrollToBottom]);
 
   // Load model list
   useEffect(() => {

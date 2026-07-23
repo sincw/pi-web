@@ -534,7 +534,7 @@ function TextFileViewer({ filePath, cwd, sourceSessionId, onOpenFile }: Props) {
     }
 
     fetchContent(filePath).then((d) => {
-      if (d?.language === "markdown") setPreviewMode(true);
+      if (d?.language === "markdown" || d?.language === "html") setPreviewMode(true);
     }).finally(() => setLoading(false));
 
     // Set up SSE watch

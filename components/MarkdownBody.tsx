@@ -37,6 +37,16 @@ export function MarkdownBody({ children, className, isStreaming, cwd, onOpenFile
               }
               return <CodeBlock code={raw.replace(/\n$/, "")} lang={lang} />;
             }
+            // `node` is react-markdown metadata, not a DOM attribute.
+            delete props.node;
+            const filePath = onOpenFile ? resolveLocalFileHref(raw.trim(), cwd) : null;
+            if (filePath && onOpenFile) {
+              return (
+                <button type="button" className="markdown-inline-code markdown-inline-file" onClick={() => onOpenFile(filePath)} title={`Open ${filePath}`}>
+                  {children}
+                </button>
+              );
+            }
             return (
               <code
                 className="markdown-inline-code"

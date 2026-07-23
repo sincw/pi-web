@@ -276,3 +276,14 @@ Five canonical roles using their default label strings (`needs-triage`, `needs-i
 ### Domain docs
 
 Single-context — `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+---
+
+## Agent File Writing Rules
+
+When creating or rewriting large files:
+
+- Prefer **chunked writes**: never emit more than **~2000 characters** in a single write call.
+- Build the file in order — scaffold first, then append or edit remaining sections.
+- For existing files, prefer surgical `edit` patches over full rewrites.
+- Keep each chunk self-contained and valid at the point of writing (no half-open strings/blocks left dangling across chunks unless immediately closed by the next edit).
