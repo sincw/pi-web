@@ -20,7 +20,8 @@ reduction project.
 
 ## Design Rules
 
-- A top-level module coordinates; feature modules own behavior.
+- A coordinator exists only at a real composition seam; feature modules own
+  behavior. Do not extract a coordinator that only forwards props or callbacks.
 - A caller crosses one small interface rather than coordinating a feature's
   internal state, transport, and rendering itself.
 - Keep pure helpers where they already concentrate real logic. Do not merge
@@ -46,6 +47,8 @@ AppShell
 |     large prop interface
 |- ChatWindow
 |  |- agent session: session data, runtime/SSE, commands, notices; no DOM refs
+|  |  `- AgentRunState: run identity, reconciliation decisions, and deferred
+|  |     Pack reload coordination; it is not a second runtime owner
 |  |- chat viewport: scrolling, history paging, completion positioning, minimap
 |  `- ChatInput: composer, completion, keyboard dispatch, and run controls
 |- SkillsConfig: workspace skills, workspace Pack application, library work
@@ -65,13 +68,21 @@ private ChatWindow viewport module. It owns scrolling, history paging,
 completion positioning, and minimap coordination. `useAgentSession` returns
 session data and runtime state, never element refs.
 
-Then extract only a complete agent-run state machine. It owns prompt run ids,
-SSE connection, reconciliation, completion, agent commands, and deferred Pack
-reload. Do not split those operations into separate transport or reconciliation
+Keep the EventSource connection, event projection, completion, and commands in
+`useAgentSession` for now: they share React state and session-loading effects,
+so extracting them today would require a callback-heavy interface. Extract the
+pure `AgentRunState` first. It owns prompt run identity, reconciliation
+decisions, and deferred Pack reload coordination, so stale responses and
+reload races have one testable source of truth. It must not own transport,
+React state, or UI projection.
+
+Reconsider a complete agent-run module only when SSE connection, completion,
+reconciliation, and commands can move together behind a smaller interface.
+Do not split those operations into separate transport or reconciliation
 modules: they share stale-run protection and must remain atomic. Session
-loading, context navigation, and fork stay in `useAgentSession` until their
-interface to that state machine is small. Notice and extension projection also
-stay with the runtime until they have a single independent caller.
+loading, context navigation, fork, notices, and extension projection stay in
+`useAgentSession` until they have an independent caller or a genuinely smaller
+interface.
 
 `agent-run.md` remains a separate reliability change; it may inform the
 agent-run module when approved, but is not required to begin this structural
@@ -130,8 +141,9 @@ callbacks until a smaller shared interface is demonstrated.
    Pack reload, and waiting for that reload before the next prompt.
 2. Move viewport DOM behavior from `useAgentSession` to ChatWindow without
    changing scroll, paging, minimap, or completion behavior.
-3. Extract an agent-run module only if it owns the full asynchronous state
-   machine and has a smaller interface than the code it replaces.
+3. Extract the pure `AgentRunState` for run identity, reconciliation, and
+   deferred Pack reload. Do not extract a full agent-run module until it can
+   own the whole asynchronous state machine behind a smaller interface.
 4. Extract the existing workspace-Packs behavior by ownership, without moving
    its screen or changing apply/unapply semantics.
 5. Extract ChatInput run controls only if they avoid draft and keyboard state;
@@ -147,8 +159,10 @@ redesign, dependency upgrades, or product changes with it.
 - Each extracted module has one clear owner and a smaller interface than the
   behavior it hides.
 - `useAgentSession` owns no DOM refs; ChatWindow owns all viewport behavior.
-- The agent-run module keeps run identity, SSE, reconciliation, and Pack reload
-  in one state machine, so an old run cannot alter a newer run.
+- `AgentRunState` keeps run identity, reconciliation decisions, and deferred
+  Pack reload coordination together, so an old reconciliation response cannot
+  alter a newer run. SSE and event projection remain co-located in
+  `useAgentSession` until they can move as one deep module.
 - ChatInput keeps its coupled composer interaction loop; extracted controls do
   not duplicate draft, focus, or keyboard state.
 - Pack definitions and workspace application remain on their current screens

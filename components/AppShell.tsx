@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
@@ -722,7 +723,7 @@ export function AppShell() {
             );
           })()}
           {/* Top panel dropdown — shared, only one active at a time */}
-          {activeTopPanel && topPanelPos && (
+          {activeTopPanel && topPanelPos && createPortal(
             <div className="workspace-popover" style={{
               position: "fixed",
               top: topPanelPos.top,
@@ -915,7 +916,8 @@ export function AppShell() {
                   )}
                 </div>
               )}
-            </div>
+            </div>,
+            document.body,
           )}
 
         </div>

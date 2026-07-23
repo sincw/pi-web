@@ -7,18 +7,13 @@ import { countToolCallBlocks, getDisplayableAssistantBlocks, splitFinalAssistant
 import { MessageView } from "./MessageView";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
+import { useChatViewport } from "./useChatViewport";
 import { useAgentSession, type AgentPhase, type NoticeItem } from "@/hooks/useAgentSession";
 import { useAudio } from "@/hooks/useAudio";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { SessionStatsInfo } from "@/lib/pi-types";
-import {
-  captureScrollDistance,
-  getNextVisibleCount,
-  getVisibleRenderWindow,
-  restoreScrollTop,
-  VISIBLE_PAGE_SIZE,
-} from "@/lib/chat-lazy-load";
+import { getVisibleRenderWindow } from "@/lib/chat-lazy-load";
 
 interface Props {
   session: SessionInfo | null;
@@ -169,7 +164,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
 
   const {
     loading, error, messages, entryIds, streamState,
-    agentRunning, modelNames, modelList, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
+    agentRunning, promptGeneration, modelNames, modelList, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
     retryInfo, contextUsage, forkingEntryId,
     isCompacting, compactError, compactResult, displayModel: displayModelValue, sessionStats,
     slashCommands, slashCommandsLoading, queuedMessages,
@@ -177,8 +172,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     isAutoModelSelection,
     agentPhase,
     isNew,
-    sessionIdRef, messagesEndRef, scrollContainerRef,
-    lastUserMsgRef,
+    sessionIdRef,
     handleSend, handleAbort, handleFork, handleNavigate, handleModelChange,
     handleCompact, handleSteer, handleFollowUp, handlePromptWithStreamingBehavior, handleAbortCompaction,
     handleRecallQueue,
@@ -189,42 +183,13 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     modelsRefreshKey, packsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsPanelOpen,
   });
 
-  // --- Lazy-load historical messages ---
-  // Only render the last N messages initially. When the user scrolls to the
-  // top, load another page while keeping the scroll position stable.
-  const [visibleCount, setVisibleCount] = useState(VISIBLE_PAGE_SIZE);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const prevScrollDistanceRef = useRef<number | null>(null);
-
-  // IntersectionObserver on the sentinel div at the top of the message list.
-  // When it becomes visible, load the next page of older messages.
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    const container = scrollContainerRef.current;
-    if (!sentinel || !container) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          // Save distance from top before prepending to restore scroll later
-          prevScrollDistanceRef.current = captureScrollDistance(container.scrollHeight, container.scrollTop);
-          setVisibleCount((prev) => getNextVisibleCount(prev));
-        }
-      },
-      { root: container, threshold: 0 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [visibleCount, messages.length, scrollContainerRef]);
-
-  // After visibleCount increases (more messages prepended), restore the
-  // scroll position so the viewport doesn't jump.
-  useEffect(() => {
-    if (prevScrollDistanceRef.current == null) return;
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.scrollTop = restoreScrollTop(container.scrollHeight, prevScrollDistanceRef.current);
-    prevScrollDistanceRef.current = null;
-  }, [visibleCount, scrollContainerRef]);
+  const { visibleCount, sentinelRef, scrollContainerRef, messagesEndRef, lastUserMessageRef } = useChatViewport({
+    messageCount: messages.length,
+    streamingMessage: streamState.streamingMessage,
+    agentRunning,
+    loading,
+    promptGeneration,
+  });
   // Push session stats up to AppShell for the top bar.
   // Compare scalar fields to avoid loops from new object identity each render.
   const statsKey = sessionStats
@@ -465,7 +430,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
 
               const attachVisibleRef = (idx: number, refIndex: number) => (el: HTMLDivElement | null) => {
                 messageRefs.current[refIndex] = el;
-                if (idx === lastUserIdx) { (lastUserMsgRef as { current: HTMLDivElement | null }).current = el; }
+                if (idx === lastUserIdx) lastUserMessageRef.current = el;
               };
 
               const renderMessage = (idx: number, options: { attachRef?: boolean; keyPrefix?: string; messageOverride?: AgentMessage; showTimestamp?: boolean } = {}): ReactNode => {

@@ -11,6 +11,7 @@ import type {
 } from "@/lib/types";
 import { normalizeToolCalls } from "@/lib/normalize";
 import { sendAgentCommand } from "@/lib/agent-client";
+import { AgentRunState } from "@/lib/agent-run-state";
 import { getToolNamesForPreset, type ToolEntry } from "@/lib/tool-presets";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 
@@ -154,8 +155,6 @@ export interface UseAgentSessionOptions {
 
 export type ThinkingLevelOption = "auto" | "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
-const PROGRAMMATIC_SCROLL_IGNORE_MS = 700;
-const USER_SCROLL_INTENT_MS = 1200;
 const PROMPT_SETTLE_INITIAL_DELAY_MS = 800;
 const PROMPT_SETTLE_POLL_MS = 600;
 const PROMPT_SETTLE_MAX_MS = 20_000;
@@ -164,7 +163,6 @@ const EVENT_STREAM_CONNECT_TIMEOUT_MS = 5_000;
 const MAX_NOTICES = 5;
 const NOTICE_VISIBLE_MS = 5000;
 const NOTICE_EXIT_ANIMATION_MS = 180;
-const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " ", "Space", "Spacebar"]);
 
 type EventStreamConnectionStatus = "connected" | "timeout" | "closed";
 
@@ -335,6 +333,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [entryIds, setEntryIds] = useState<string[]>([]);
   const [streamState, dispatch] = useReducer(streamReducer, { isStreaming: false, streamingMessage: null });
   const [agentRunning, setAgentRunning] = useState(false);
+  const [promptGeneration, setPromptGeneration] = useState(0);
   const [modelNames, setModelNames] = useState<Record<string, string>>({});
   const [modelList, setModelList] = useState<ModelEntry[]>([]);
   const [modelThinkingLevels, setModelThinkingLevels] = useState<Record<string, string[]>>({});
@@ -365,23 +364,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const sessionIdRef = useRef<string | null>(session?.id ?? null);
-  const agentRunningRef = useRef(false);
+  const agentRunRef = useRef(new AgentRunState());
   const handleAgentEventRef = useRef<((event: AgentEvent) => void) | null>(null);
-  const initialScrollDoneRef = useRef(false);
-  const lastUserMsgRef = useRef<HTMLDivElement | null>(null);
-  const pendingScrollToUserRef = useRef(false);
-  const completionScrollAllowedRef = useRef(true);
-  const userScrollIntentUntilRef = useRef(0);
-  const ignoreProgrammaticScrollUntilRef = useRef(0);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const ensuringNewSessionRef = useRef<Promise<string | null> | null>(null);
   const newSessionPromotedRef = useRef(false);
-  const promptRunIdRef = useRef(0);
   const optimisticUserMessageKeyRef = useRef<string | null>(null);
   const prevPacksRefreshKeyRef = useRef(packsRefreshKey);
-  const pendingSkillReloadRef = useRef(false);
-  const skillReloadPromiseRef = useRef<Promise<void> | null>(null);
 
   const setToolPresetState = opts.setToolPreset ?? setToolPreset;
 
@@ -621,10 +609,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           // auto-reconnect. Settle the Promise and manually reconnect for
           // already-running sessions.
           settle("closed");
-          if (eventSourceRef.current === es && agentRunningRef.current) {
+          if (eventSourceRef.current === es && agentRunRef.current.running) {
             eventSourceRef.current = null;
             setTimeout(() => {
-              if (agentRunningRef.current) void connectEvents(sid);
+              if (agentRunRef.current.running) void connectEvents(sid);
             }, 1000);
           }
         }
@@ -689,33 +677,17 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }, []);
 
   const ensurePackSkillsReloaded = useCallback(() => {
-    if (skillReloadPromiseRef.current) return skillReloadPromiseRef.current;
-    if (!pendingSkillReloadRef.current) return Promise.resolve();
-
-    const task = (async () => {
-      do {
-        pendingSkillReloadRef.current = false;
-        const sid = sessionIdRef.current;
-        if (sid) await sendAgentCommand(sid, { type: "reload" });
-        await loadSlashCommands();
-      } while (pendingSkillReloadRef.current);
-    })();
-    skillReloadPromiseRef.current = task;
-    void task.then(
-      () => { skillReloadPromiseRef.current = null; },
-      () => {
-        pendingSkillReloadRef.current = true;
-        skillReloadPromiseRef.current = null;
-      },
-    );
-    return task;
+    return agentRunRef.current.reloadPacks(async () => {
+      const sid = sessionIdRef.current;
+      if (sid) await sendAgentCommand(sid, { type: "reload" });
+      await loadSlashCommands();
+    });
   }, [loadSlashCommands]);
 
   useEffect(() => {
     if (prevPacksRefreshKeyRef.current === packsRefreshKey) return;
     prevPacksRefreshKeyRef.current = packsRefreshKey;
-    pendingSkillReloadRef.current = true;
-    if (agentRunning) {
+    if (agentRunRef.current.requestPackReload() === "deferred") {
       addNotice({ type: "info", message: "Pack skills will be available after the current run ends." });
       return;
     }
@@ -725,7 +697,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }, [packsRefreshKey, agentRunning, addNotice, ensurePackSkillsReloaded]);
 
   useEffect(() => {
-    if (agentRunning || !pendingSkillReloadRef.current) return;
+    if (agentRunning || !agentRunRef.current.hasPendingPackReload) return;
     void ensurePackSkillsReloaded().catch((e) => {
       addNotice({ type: "error", message: `Failed to reload pack skills: ${String(e)}` });
     });
@@ -781,16 +753,15 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }, [addNotice, opts.chatInputRef]);
 
   const finishPromptWithoutStream = useCallback(async (sid: string | null = sessionIdRef.current, runId?: number) => {
+    const targetRunId = runId ?? agentRunRef.current.runId;
     // Bail out before loadSession too: a stale finish for a previous run
     // must not overwrite the messages of the run currently streaming.
-    if (runId !== undefined && promptRunIdRef.current !== runId) return;
+    if (!agentRunRef.current.isCurrent(targetRunId)) return;
     try {
       if (sid) await loadSession(sid);
     } finally {
-      if (runId !== undefined && promptRunIdRef.current !== runId) return;
+      if (!agentRunRef.current.finish(targetRunId)) return;
       optimisticUserMessageKeyRef.current = null;
-      if (!agentRunningRef.current) return;
-      agentRunningRef.current = false;
       setAgentRunning(false);
       setAgentPhase(null);
       setRetryInfo(null);
@@ -803,8 +774,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     await delay(PROMPT_SETTLE_INITIAL_DELAY_MS);
     const startedAt = Date.now();
 
-    while (agentRunningRef.current && Date.now() - startedAt < PROMPT_SETTLE_MAX_MS) {
-      if (runId !== undefined && promptRunIdRef.current !== runId) return;
+    while (agentRunRef.current.running && Date.now() - startedAt < PROMPT_SETTLE_MAX_MS) {
+      if (runId !== undefined && !agentRunRef.current.isCurrent(runId)) return;
       try {
         const res = await fetch(`/api/agent/${encodeURIComponent(sid)}`);
         if (res.ok) {
@@ -828,8 +799,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   // If the server reports idle while we still think it's running, finish
   // through the same path as prompt_done.
   const reconcileAgentState = useCallback(async (sid: string) => {
-    if (!agentRunningRef.current) return;
-    const runId = promptRunIdRef.current;
+    if (!agentRunRef.current.running) return;
+    const runId = agentRunRef.current.runId;
     try {
       const res = await fetch(`/api/agent/${encodeURIComponent(sid)}`);
       if (!res.ok) return;
@@ -837,7 +808,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       // A slow response can straddle a run boundary (previous run finished
       // and the user already started the next one while this request was in
       // flight) — everything in it is stale, drop it.
-      if (promptRunIdRef.current !== runId) return;
+      if (!agentRunRef.current.isCurrent(runId)) return;
       const state = data.state;
       // Mirror compaction state unconditionally: a missed compaction_end
       // would otherwise leave the "Stop compaction" UI stuck. No state
@@ -846,7 +817,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       setQueuedMessages(normalizeQueuedMessages(state?.queuedMessages));
       const busy = data.running && state
         && (state.isStreaming || state.isPromptRunning || state.isCompacting);
-      if (busy || !agentRunningRef.current) return;
+      if (agentRunRef.current.reconcile(runId, Boolean(busy)) !== "finish") return;
       if (state) {
         if (state.contextUsage !== undefined) setContextUsage(state.contextUsage ?? null);
         if (state.systemPrompt !== undefined) setSystemPrompt(state.systemPrompt ?? null);
@@ -883,14 +854,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     };
   }, [agentRunning, reconcileAgentState]);
 
-  useEffect(() => {
-    agentRunningRef.current = agentRunning;
-  }, [agentRunning]);
-
   const handleAgentEvent = useCallback((event: AgentEvent) => {
     switch (event.type) {
       case "agent_start":
-        agentRunningRef.current = true;
+        agentRunRef.current.ensureRunning();
         setAgentRunning(true);
         setAgentPhase({ kind: "waiting_model" });
         dispatch({ type: "start" });
@@ -898,8 +865,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       case "agent_end":
         // A late agent_end can arrive over SSE after reconcileAgentState
         // already finished this run — don't re-trigger completion.
-        if (!agentRunningRef.current) break;
-        agentRunningRef.current = false;
+        if (!agentRunRef.current.finish()) break;
         setAgentRunning(false);
         setAgentPhase(null);
         setRetryInfo(null);
@@ -922,7 +888,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         onAgentEnd?.();
         break;
       case "prompt_done":
-        if (!agentRunningRef.current) break;
+        if (!agentRunRef.current.running) break;
         void finishPromptWithoutStream(sessionIdRef.current);
         break;
       case "prompt_error":
@@ -939,7 +905,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         // Ignore streaming events arriving after this run already finished
         // (e.g. SSE data buffered while the tab was frozen, flushed after
         // reconcile) — they would resurrect a ghost streaming bubble.
-        if (!agentRunningRef.current) break;
+        if (!agentRunRef.current.running) break;
         const msg = event.message as Partial<AgentMessage> | undefined;
         if (msg?.role === "user") {
           break;
@@ -954,7 +920,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         // Same late-event guard: after reconcile finished this run,
         // loadSession already loaded this message from the session file —
         // appending it again would duplicate it.
-        if (!agentRunningRef.current) break;
+        if (!agentRunRef.current.running) break;
         const completed = event.message as AgentMessage | undefined;
         if (completed && completed.role === "user") {
           // Delivered steering/follow-up messages surface here as user
@@ -1040,16 +1006,16 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const handleSend = useCallback(async (message: string, images?: AttachedImage[]) => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage && !images?.length) return;
-    if (agentRunningRef.current) return;
+    if (agentRunRef.current.running) return;
     try {
       await ensurePackSkillsReloaded();
     } catch (e) {
       addNotice({ type: "error", message: `Failed to reload pack skills: ${String(e)}` });
       return;
     }
-    if (agentRunningRef.current) return;
+    if (agentRunRef.current.running) return;
     const isSlashCommandPrompt = !images?.length && trimmedMessage.startsWith("/");
-    const promptRunId = promptRunIdRef.current + 1;
+    const promptRunId = agentRunRef.current.start();
 
     const imageBlocks = images?.map((img) => ({ type: "image" as const, source: { type: "base64" as const, media_type: img.mimeType, data: img.data } }));
     const userMsg: AgentMessage = {
@@ -1061,13 +1027,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     };
     setMessages((prev) => [...prev, userMsg]);
     optimisticUserMessageKeyRef.current = userMessageKey(userMsg);
-    promptRunIdRef.current = promptRunId;
-    agentRunningRef.current = true;
     setAgentRunning(true);
     setAgentPhase(isSlashCommandPrompt ? { kind: "running_command" } : { kind: "waiting_model" });
     dispatch({ type: "start" });
-    pendingScrollToUserRef.current = true;
-    completionScrollAllowedRef.current = true;
+    setPromptGeneration(promptRunId);
 
     const piImages = images?.map((img) => ({ type: "image" as const, data: img.data, mimeType: img.mimeType }));
 
@@ -1121,7 +1084,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         addNotice({ type: "error", message: e.message });
       }
       optimisticUserMessageKeyRef.current = null;
-      agentRunningRef.current = false;
+      agentRunRef.current.finish(promptRunId);
       setAgentRunning(false);
       setAgentPhase(null);
       dispatch({ type: "end" });
@@ -1426,41 +1389,6 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     }
   }, [setToolPresetState]);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    ignoreProgrammaticScrollUntilRef.current = Date.now() + PROGRAMMATIC_SCROLL_IGNORE_MS;
-    messagesEndRef.current?.scrollIntoView({ behavior });
-  }, []);
-
-  const scrollUserMsgToTop = useCallback(() => {
-    const container = scrollContainerRef.current;
-    const el = lastUserMsgRef.current;
-    if (!container || !el) return;
-    const elAbsTop = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-    ignoreProgrammaticScrollUntilRef.current = Date.now() + PROGRAMMATIC_SCROLL_IGNORE_MS;
-    container.scrollTo({ top: elAbsTop - 16, behavior: "smooth" });
-  }, []);
-
-  const markUserScrollIntent = useCallback((event: Event) => {
-    if (event instanceof KeyboardEvent) {
-      if (!SCROLL_KEYS.has(event.key)) return;
-      if (event.target instanceof Element && event.target.closest("input, textarea, [contenteditable='true']")) return;
-    }
-    userScrollIntentUntilRef.current = Date.now() + USER_SCROLL_INTENT_MS;
-  }, []);
-
-  const handleScrollPositionChange = useCallback((event: Event) => {
-    if (!agentRunningRef.current) return;
-    const container = event.currentTarget as HTMLDivElement;
-    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 1;
-    if (atBottom) {
-      completionScrollAllowedRef.current = true;
-      return;
-    }
-    if (Date.now() < ignoreProgrammaticScrollUntilRef.current) return;
-    if (Date.now() > userScrollIntentUntilRef.current) return;
-    completionScrollAllowedRef.current = false;
-  }, []);
-
   // Load session on mount
   useEffect(() => {
     if (session) {
@@ -1469,7 +1397,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         if (agentState?.running) {
           loadTools(session.id);
           if (agentState.state?.isStreaming || agentState.state?.isPromptRunning) {
-            agentRunningRef.current = true;
+            agentRunRef.current.ensureRunning();
             setAgentRunning(true);
             setAgentPhase(agentState.state.isStreaming ? { kind: "waiting_model" } : { kind: "running_command" });
             dispatch({ type: "start" });
@@ -1505,49 +1433,6 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     if (!onBranchDataChange) return;
     onBranchDataChange(data?.tree ?? [], activeLeafId, handleLeafChange);
   }, [data?.tree, activeLeafId, handleLeafChange, onBranchDataChange]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", markUserScrollIntent);
-    window.addEventListener("pointerdown", markUserScrollIntent, { passive: true });
-    return () => {
-      window.removeEventListener("keydown", markUserScrollIntent);
-      window.removeEventListener("pointerdown", markUserScrollIntent);
-    };
-  }, [markUserScrollIntent]);
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.addEventListener("wheel", markUserScrollIntent, { passive: true });
-    container.addEventListener("touchstart", markUserScrollIntent, { passive: true });
-    container.addEventListener("scroll", handleScrollPositionChange, { passive: true });
-    return () => {
-      container.removeEventListener("wheel", markUserScrollIntent);
-      container.removeEventListener("touchstart", markUserScrollIntent);
-      container.removeEventListener("scroll", handleScrollPositionChange);
-    };
-  }, [messages.length, loading, handleScrollPositionChange, markUserScrollIntent]);
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      if (pendingScrollToUserRef.current) {
-        pendingScrollToUserRef.current = false;
-        initialScrollDoneRef.current = true;
-        scrollUserMsgToTop();
-      } else if (!initialScrollDoneRef.current) {
-        initialScrollDoneRef.current = true;
-        scrollToBottom("instant");
-      } else if (!agentRunningRef.current && completionScrollAllowedRef.current) {
-        scrollToBottom("smooth");
-      }
-    }
-  }, [messages.length, agentRunning, scrollToBottom, scrollUserMsgToTop]);
-
-  useEffect(() => {
-    if (streamState.streamingMessage && completionScrollAllowedRef.current) {
-      scrollToBottom("instant");
-    }
-  }, [streamState.streamingMessage, scrollToBottom]);
 
   // Load model list
   useEffect(() => {
@@ -1595,7 +1480,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   return {
     // State
     data, loading, error, activeLeafId, messages, entryIds, streamState,
-    agentRunning, modelNames, modelList, modelThinkingLevels, modelThinkingLevelMaps, newSessionModel, toolPreset, thinkingLevel,
+    agentRunning, promptGeneration, modelNames, modelList, modelThinkingLevels, modelThinkingLevelMaps, newSessionModel, toolPreset, thinkingLevel,
     retryInfo, contextUsage, systemPrompt, forkingEntryId,
     isCompacting, compactError, compactResult, currentModel, displayModel, sessionStats,
     slashCommands, slashCommandsLoading, queuedMessages,
@@ -1603,9 +1488,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     isAutoModelSelection: isNew && newSessionModel === null,
     agentPhase,
     isNew,
-    // Refs
-    sessionIdRef, eventSourceRef, messagesEndRef, scrollContainerRef,
-    lastUserMsgRef, pendingScrollToUserRef, initialScrollDoneRef,
+    // Runtime refs
+    sessionIdRef, eventSourceRef,
     // Actions
     handleSend, handleAbort, handleFork, handleNavigate, handleModelChange,
     handleCompact, handleSteer, handleFollowUp, handlePromptWithStreamingBehavior, handleAbortCompaction,

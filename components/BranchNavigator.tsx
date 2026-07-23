@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { SessionEntry, SessionTreeNode } from "@/lib/types";
 
 interface Props {
@@ -303,7 +304,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           {branchIcon}
           {!compact && <span>Session Tree</span>}
         </button>
-        {open && dropdownPos && (
+        {open && dropdownPos && createPortal(
           <div className="overlay-surface" style={{
             position: "fixed",
             top: dropdownPos.top,
@@ -332,7 +333,8 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
                 {noBranchReason}
               </div>
             )}
-          </div>
+          </div>,
+          document.body,
         )}
       </div>
     );

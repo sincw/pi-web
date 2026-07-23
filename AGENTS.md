@@ -84,6 +84,7 @@ app/api/
 
 lib/
   agent-client.ts      typed fetch helper for /api/agent commands
+  agent-run-state.ts   run identity, reconciliation, and Pack reload coordination
   draft-store.ts       local draft persistence helpers
   file-access.ts       allowed file roots for /api/files and worktrees
   file-paths.ts        client/server path encoding helpers
@@ -121,6 +122,7 @@ components/
   ModelsConfig.tsx    modal for editing models.json (opened from sidebar bottom)
   PluginsConfig.tsx   modal for installed package plugins
   SkillsConfig.tsx    modal for loaded/search/installable skills
+  WorkspacePacks.tsx  workspace Pack preview, apply, and unapply flow
   McpConfig.tsx       modal for workspace, library, and editable MCP definitions
   SkillPacksModal.tsx global skill-pack definition management
   WorkspaceFileTree.tsx reusable project file tree
@@ -128,6 +130,7 @@ components/
   FileIcons.tsx       file icon helpers
   FileViewer.tsx      file content preview
   TabBar.tsx          generic closable tab row
+  useChatViewport.ts  chat scrolling, paging, and completion positioning
   right-panel/
     RightPanel.tsx    owns right-panel tabs, workspace reset, and panel controls
     tool-registry.ts  registered right-panel tools; drives launcher/menu/tab icons
@@ -184,6 +187,11 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - The sidebar listens to `/api/agent/running/events`, backed by `subscribeRunningSessions()` in `lib/rpc-manager.ts`, so running badges update without polling.
 - `useAgentSession` still treats per-session SSE as primary for chat events, but while a run is active it periodically calls `GET /api/agent/[id]` and also reconciles on `visibilitychange`/`online`. This fixes missed `agent_end` events from background tabs or half-open connections.
 - Prompt runs use a monotonic run id; late SSE or slow reconciliation responses from an old run must be ignored so they cannot resurrect stale streaming bubbles.
+
+### Chat and Pack ownership
+- `ChatWindow` composes `useAgentSession` with `useChatViewport`. Keep DOM refs, scrolling, history paging, and completion positioning in the viewport hook; the session hook must not manipulate DOM.
+- `AgentRunState` is the synchronous source of truth for run identity, reconciliation decisions, and deferred Pack reload. Keep SSE connection, event projection, and commands co-located in `useAgentSession` until they can move together behind a smaller interface.
+- `WorkspacePacks` owns workspace Pack preview, apply, and unapply. `SkillsConfig` renders it and refreshes skills through `onApplied`; do not duplicate Pack mutation state there.
 
 ### Worktrees and project grouping
 - `lib/worktree.ts` resolves linked worktree top-levels back to the main repo `projectRoot`; `listAllSessions()` attaches that to each `SessionInfo` so all worktrees for one repo are grouped together in the sidebar.

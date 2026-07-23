@@ -25,22 +25,26 @@ test("collapses mobile pack badges to the first pack", async () => {
 });
 
 test("keeps the live stream anchored to the real chat tail", async () => {
-  const [chatWindow, hook] = await Promise.all([
+  const [chatWindow, viewport, hook] = await Promise.all([
     readFile(new URL("./ChatWindow.tsx", import.meta.url), "utf8"),
+    readFile(new URL("./useChatViewport.ts", import.meta.url), "utf8"),
     readFile(new URL("../hooks/useAgentSession.ts", import.meta.url), "utf8"),
   ]);
 
   assert.doesNotMatch(chatWindow, /agentRunning && \(\s*<div style=\{\{ height: scrollContainerRef\.current/);
-  assert.match(hook, /\[streamState\.streamingMessage, scrollToBottom\]/);
+  assert.match(chatWindow, /useChatViewport\(\{/);
+  assert.match(viewport, /if \(streamingMessage && completionScrollAllowedRef\.current\)/);
+  assert.doesNotMatch(hook, /messagesEndRef|scrollContainerRef|lastUserMsgRef/);
 });
 
 test("resumes following when the user returns to the live tail", async () => {
-  const hook = await readFile(new URL("../hooks/useAgentSession.ts", import.meta.url), "utf8");
-  const handleScroll = hook.slice(
-    hook.indexOf("const handleScrollPositionChange = useCallback"),
-    hook.indexOf("// Load session on mount"),
-  );
+  const [viewport, state] = await Promise.all([
+    readFile(new URL("./useChatViewport.ts", import.meta.url), "utf8"),
+    readFile(new URL("./chat-viewport-state.ts", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(handleScroll, /const atBottom = container\.scrollHeight - container\.scrollTop - container\.clientHeight <= 1;/);
-  assert.match(handleScroll, /if \(atBottom\) \{\s*completionScrollAllowedRef\.current = true;\s*return;/);
+  assert.match(viewport, /container\.addEventListener\("scroll", handleScrollPositionChange/);
+  assert.match(viewport, /isAtScrollTail\(container\.scrollHeight, container\.scrollTop, container\.clientHeight\)/);
+  assert.match(state, /if \(atTail\) return true;/);
+  assert.match(state, /if \(now < ignoreProgrammaticScrollUntil \|\| now > userScrollIntentUntil\) return current;/);
 });
