@@ -29,6 +29,7 @@ interface Props {
 
 const UNREAD_SESSIONS_STORAGE_KEY = "pi-web:unread-session-ids";
 const HIDDEN_WORKSPACES_STORAGE_KEY = "pi-web:hidden-workspaces";
+const CUSTOM_WORKSPACES_STORAGE_KEY = "pi-web:custom-workspaces";
 
 function loadUnreadSessionIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -69,6 +70,26 @@ function saveHiddenWorkspaces(workspaces: Set<string>): void {
   try {
     if (workspaces.size === 0) window.localStorage.removeItem(HIDDEN_WORKSPACES_STORAGE_KEY);
     else window.localStorage.setItem(HIDDEN_WORKSPACES_STORAGE_KEY, JSON.stringify([...workspaces]));
+  } catch {
+    // ignore storage quota / privacy-mode errors
+  }
+}
+
+function loadCustomWorkspaces(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(CUSTOM_WORKSPACES_STORAGE_KEY) ?? "[]") as unknown;
+    return Array.isArray(parsed) ? parsed.filter((path): path is string => typeof path === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomWorkspaces(workspaces: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (workspaces.length === 0) window.localStorage.removeItem(CUSTOM_WORKSPACES_STORAGE_KEY);
+    else window.localStorage.setItem(CUSTOM_WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces));
   } catch {
     // ignore storage quota / privacy-mode errors
   }
@@ -173,7 +194,9 @@ function DirectoryPickerModal({ open, onClose, onSelect }: { open: boolean; onCl
   }, []);
 
   useEffect(() => {
-    if (open) void loadDirectory();
+    if (!open) return;
+    setSelecting(false);
+    void loadDirectory();
   }, [open, loadDirectory]);
 
   useEffect(() => {
@@ -460,13 +483,17 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [directoryPickerOpen, setDirectoryPickerOpen] = useState(false);
   const [projectFilter, setProjectFilter] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const projectListRef = useRef<HTMLDivElement>(null);
+  const [projectListMaxHeight, setProjectListMaxHeight] = useState<number | null>(null);
   const [explorerOpen, setExplorerOpen] = useState(true);
   const [explorerKey, setExplorerKey] = useState(0);
   const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
   const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(() => new Set());
-  const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(() => loadUnreadSessionIds());
-  const [hiddenWorkspaces, setHiddenWorkspaces] = useState<Set<string>>(() => loadHiddenWorkspaces());
+  const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(() => new Set());
+  const [hiddenWorkspaces, setHiddenWorkspaces] = useState<Set<string>>(() => new Set());
+  const [customWorkspaces, setCustomWorkspaces] = useState<string[]>([]);
+  const [storageLoaded, setStorageLoaded] = useState(false);
   const previousRunningSessionIdsRef = useRef<Set<string>>(new Set());
   // Once the SSE stream has delivered a frame it is the source of truth for
   // running state; late /api/sessions responses must not overwrite it.
@@ -513,15 +540,29 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     loadSessions(isFirst);
   }, [loadSessions, refreshKey]);
 
+  useEffect(() => {
+    setUnreadSessionIds(loadUnreadSessionIds());
+    setHiddenWorkspaces(loadHiddenWorkspaces());
+    setCustomWorkspaces(loadCustomWorkspaces());
+    setStorageLoaded(true);
+  }, []);
+
   // Persist unread markers so they survive a browser refresh before the user
   // has actually opened the completed session.
   useEffect(() => {
+    if (!storageLoaded) return;
     saveUnreadSessionIds(unreadSessionIds);
-  }, [unreadSessionIds]);
+  }, [storageLoaded, unreadSessionIds]);
 
   useEffect(() => {
+    if (!storageLoaded) return;
     saveHiddenWorkspaces(hiddenWorkspaces);
-  }, [hiddenWorkspaces]);
+  }, [hiddenWorkspaces, storageLoaded]);
+
+  useEffect(() => {
+    if (!storageLoaded) return;
+    saveCustomWorkspaces(customWorkspaces);
+  }, [customWorkspaces, storageLoaded]);
 
   useEffect(() => {
     // Live running status via SSE — no polling. The server pushes the current
@@ -643,13 +684,22 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       if (!res.ok || data.error) {
         return data.error ?? `HTTP ${res.status}`;
       }
-      setSelectedCwd(data.cwd ?? path);
+      const cwd = data.cwd ?? path;
+      const project = projectRootFor(cwd) ?? cwd;
+      setHiddenWorkspaces((current) => {
+        if (!current.has(project)) return current;
+        const next = new Set(current);
+        next.delete(project);
+        return next;
+      });
+      setCustomWorkspaces((current) => [project, ...current.filter((item) => item !== project)]);
+      setSelectedCwd(cwd);
       setDropdownOpen(false);
       return null;
     } catch (e) {
       return e instanceof Error ? e.message : String(e);
     }
-  }, []);
+  }, [projectRootFor]);
 
   const handleDefaultCwd = useCallback(async () => {
     try {
@@ -705,7 +755,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     setDirectoryPickerOpen(true);
   }, []);
 
-  const recentProjects = getRecentProjects(allSessions).filter((project) => !hiddenWorkspaces.has(project));
+  const recentProjects = [...customWorkspaces, ...getRecentProjects(allSessions)]
+    .filter((project, index, projects) => projects.indexOf(project) === index && !hiddenWorkspaces.has(project));
   // Sessions of every worktree in the selected project are shown together.
   // Keep the current workspace first even when it has no recent session yet.
   const selectedProject = projectRootFor(selectedCwd);
@@ -713,15 +764,42 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     ? [selectedProject, ...recentProjects.filter((project) => project !== selectedProject)]
     : recentProjects;
   const flatWorkspaceProjects = workspaceProjects.slice(0, isMobile ? 1 : 5);
-  const hasMoreWorkspaces = workspaceProjects.length > flatWorkspaceProjects.length;
   const showProjectFilter = workspaceProjects.length > 8;
   const visibleProjects = projectFilter.trim()
     ? workspaceProjects.filter((p) => p.toLowerCase().includes(projectFilter.trim().toLowerCase()))
     : workspaceProjects;
 
+  useEffect(() => {
+    if (!dropdownOpen || !isMobile) {
+      setProjectListMaxHeight(null);
+      return;
+    }
+
+    const updateMaxHeight = () => {
+      const list = projectListRef.current;
+      const dropdown = list?.parentElement;
+      if (!list || !dropdown) return;
+      const listRect = list.getBoundingClientRect();
+      const dropdownRect = dropdown.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const footerHeight = dropdownRect.bottom - listRect.bottom;
+      setProjectListMaxHeight(Math.max(0, Math.min(viewportHeight * 0.5, 380, viewportHeight - 72 - listRect.top - footerHeight)));
+    };
+
+    const timeout = window.setTimeout(updateMaxHeight, DROPDOWN_ANIMATION_MS + 20);
+    window.addEventListener("resize", updateMaxHeight);
+    window.visualViewport?.addEventListener("resize", updateMaxHeight);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("resize", updateMaxHeight);
+      window.visualViewport?.removeEventListener("resize", updateMaxHeight);
+    };
+  }, [dropdownOpen, isMobile, showProjectFilter, visibleProjects.length]);
+
   const handleWorkspaceRemove = useCallback((project: string) => {
     if (!confirm(`Remove "${displayCwd(project, homeDir)}" from Workspace?`)) return;
     setHiddenWorkspaces((current) => new Set(current).add(project));
+    setCustomWorkspaces((current) => current.filter((item) => item !== project));
     if (project === selectedProject) {
       setSelectedCwd(workspaceProjects.find((candidate) => candidate !== project) ?? null);
     }
@@ -833,14 +911,14 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   key={project}
                   type="button"
                   className={isSelected ? "sidebar-project-row is-active" : "sidebar-project-row"}
-                  onClick={() => isSelected && hasMoreWorkspaces ? setDropdownOpen(true) : handleProjectSelect(project)}
+                  onClick={() => isSelected ? setDropdownOpen(true) : handleProjectSelect(project)}
                   title={displayCwd(project, homeDir)}
                 >
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M3.5 6.5A2.5 2.5 0 0 1 6 4h4l2 2.5h6A2.5 2.5 0 0 1 20.5 9v8.5A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z" />
                   </svg>
                   <span>{projectLabel(project)}</span>
-                  {isSelected && hasMoreWorkspaces && (
+                  {isSelected && (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0, width: isMobile ? 28 : 24, height: isMobile ? 28 : 24 }}>
                       <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
                     </svg>
@@ -905,7 +983,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   />
                 </div>
               )}
-              <div style={{ maxHeight: "min(50vh, 380px)", overflowY: "auto" }}>
+              <div ref={projectListRef} style={{ maxHeight: projectListMaxHeight ?? "min(50vh, 380px)", overflowY: "auto", overscrollBehavior: "contain" }}>
                 {visibleProjects.map((project) => (
                   <div key={project} style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
                     <button
