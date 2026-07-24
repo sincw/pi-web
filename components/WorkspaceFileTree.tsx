@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AtSign, Check, ChevronRight, ChevronUp, Eye, EyeOff, LoaderCircle, Plus, RefreshCw, Search, X } from "lucide-react";
 import { FolderIcon, getFileIcon } from "./FileIcons";
 import { encodeFilePathForApi, getRelativeFilePath, joinFilePath } from "@/lib/file-paths";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 type FileEntry = { name: string; isDir: boolean };
 type SearchEntry = { path: string; isDir: boolean };
@@ -53,6 +54,7 @@ function isHiddenPath(path: string) {
 }
 
 export function WorkspaceFileTree({ cwd, onOpenFile, refreshKey, revealRequest, onAtMention, showToolbar = true, allowMutations = false }: Props) {
+  const isMobile = useIsMobile();
   const [nodes, setNodes] = useState<TreeNodes>(() => ({ "": rootNode(cwd) }));
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedPath, setSelectedPath] = useState("");
@@ -438,7 +440,10 @@ export function WorkspaceFileTree({ cwd, onOpenFile, refreshKey, revealRequest, 
               {node.isDir ? (
                 <button type="button" className="workspace-file-tree-toggle" onClick={() => toggleDirectory(path)} title={isExpanded ? "Collapse folder" : "Expand folder"} aria-label={isExpanded ? "Collapse folder" : "Expand folder"} aria-busy={node.loading}>{node.loading ? <span className="workspace-file-tree-toggle-spinner" /> : <ChevronRight size={14} strokeWidth={1.8} aria-hidden="true" style={{ transform: isExpanded ? "rotate(90deg)" : "none" }} />}</button>
               ) : <span className="workspace-file-tree-toggle" />}
-              <button type="button" className="workspace-file-tree-name" onClick={() => setSelectedPath(path)} onDoubleClick={() => node.isDir ? toggleDirectory(path) : onOpenFile(joinFilePath(cwd, path), node.name)} onKeyDown={(event) => {
+              <button type="button" className="workspace-file-tree-name" onClick={() => {
+                setSelectedPath(path);
+                if (isMobile && !node.isDir) onOpenFile(joinFilePath(cwd, path), node.name);
+              }} onDoubleClick={() => node.isDir ? toggleDirectory(path) : onOpenFile(joinFilePath(cwd, path), node.name)} onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
                 if (node.isDir) toggleDirectory(path);
