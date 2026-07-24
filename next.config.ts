@@ -9,6 +9,11 @@ try {
   piVersion = (JSON.parse(readFileSync(piPkgPath, "utf8")) as { version: string }).version;
 } catch { /* package not found, use default */ }
 
+const allowedDevOrigins = (process.env.PIVOT_ALLOWED_DEV_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
   serverExternalPackages: [
     "@earendil-works/pi-coding-agent",
@@ -16,7 +21,7 @@ const nextConfig: NextConfig = {
     "@earendil-works/pi-tui",
     "node-pty",
   ],
-  allowedDevOrigins: ['127.0.0.1', '192.168.*.*', 'home.sinc.lol'],
+  allowedDevOrigins,
   async headers() {
     return [
       {
