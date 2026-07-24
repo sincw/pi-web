@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowUp, Check, Copy, FileText, Gauge, History, Info, Menu, Moon, PanelLeftClose, RotateCcw, Settings, Sun } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Copy, Eye, FileText, Gauge, History, Info, Menu, Moon, PanelLeftClose, RotateCcw, Settings, Sun } from "lucide-react";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import { ModelsConfig } from "./ModelsConfig";
@@ -28,7 +28,8 @@ type SessionCopyField = "file" | "id";
 export function AppShell() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isDark, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
+  const nextThemeLabel = theme === "light" ? "Switch to dark mode" : theme === "dark" ? "Switch to eye comfort mode" : "Switch to light mode";
   const isMobile = useIsMobile();
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
   // When user clicks +, we only store the cwd — no fake session id
@@ -492,9 +493,8 @@ export function AppShell() {
               const rect = e.currentTarget.getBoundingClientRect();
               toggleTheme({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
             }}
-            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            aria-pressed={isDark}
+            title={nextThemeLabel}
+            aria-label={nextThemeLabel}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 36, height: 36, padding: 0,
@@ -504,7 +504,7 @@ export function AppShell() {
             onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
           >
-            {isDark ? <Sun size={16} strokeWidth={1.8} aria-hidden="true" /> : <Moon size={16} strokeWidth={1.8} aria-hidden="true" />}
+            {theme === "light" ? <Moon size={16} strokeWidth={1.8} aria-hidden="true" /> : theme === "dark" ? <Eye size={16} strokeWidth={1.8} aria-hidden="true" /> : <Sun size={16} strokeWidth={1.8} aria-hidden="true" />}
           </button>
           {showChat && (
             <div style={{ display: "flex", alignItems: "stretch", height: "100%" }}>

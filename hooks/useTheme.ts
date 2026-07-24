@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-type Theme = "light" | "dark";
+type Theme = "light" | "dark" | "eye";
 
 const listeners = new Set<() => void>();
 
@@ -15,6 +15,7 @@ function subscribe(cb: () => void): () => void {
 
 function getSnapshot(): Theme {
   if (typeof document === "undefined") return "light";
+  if (document.documentElement.classList.contains("eye")) return "eye";
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
@@ -28,14 +29,12 @@ export function useTheme() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const toggleTheme = useCallback((origin?: ToggleOrigin) => {
-    const next: Theme = getSnapshot() === "dark" ? "light" : "dark";
+    const current = getSnapshot();
+    const next: Theme = current === "light" ? "dark" : current === "dark" ? "eye" : "light";
 
     const apply = () => {
-      if (next === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      document.documentElement.classList.remove("dark", "eye");
+      if (next !== "light") document.documentElement.classList.add(next);
       try {
         localStorage.setItem("pi-theme", next);
       } catch {

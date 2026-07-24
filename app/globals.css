@@ -3614,6 +3614,91 @@ html.dark .right-panel-launcher-item:not(:disabled):hover {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
 }
 
+/* Eye comfort theme */
+html.eye {
+  --app-canvas: #d9dde2;
+  --bg: rgba(237, 240, 243, 0.86);
+  --bg-panel: rgba(228, 232, 236, 0.86);
+  --bg-hover: rgba(64, 76, 96, 0.06);
+  --bg-selected: rgba(75, 130, 184, 0.12);
+  --border: rgba(76, 88, 102, 0.16);
+  --glass-border: rgba(255, 255, 255, 0.44);
+  --surface-raised: rgba(243, 245, 247, 0.86);
+  --overlay-bg: #eff1f4;
+  --overlay-border: rgba(76, 88, 102, 0.22);
+  --text: #2a2e34;
+  --text-muted: #69717b;
+  --text-dim: #858d96;
+  --accent: #4b82b8;
+  --accent-hover: #3d71a4;
+  --accent-gradient: #4b82b8;
+  --user-bg: rgba(75, 130, 184, 0.1);
+  --user-border: rgba(75, 130, 184, 0.2);
+  --assistant-bg: rgba(246, 247, 248, 0.55);
+  --tool-bg: rgba(235, 238, 241, 0.76);
+  --bg-subtle: rgba(42, 46, 52, 0.035);
+  --shadow-window: 0 16px 40px rgba(49, 57, 67, 0.1), 0 3px 8px rgba(49, 57, 67, 0.04);
+  --shadow-float: 0 14px 32px rgba(49, 57, 67, 0.14), 0 3px 8px rgba(49, 57, 67, 0.05);
+}
+
+html.eye .glass-sidebar,
+html.eye .workspace-main,
+html.eye .glass-file-panel {
+  background: var(--bg) !important;
+}
+
+html.eye .workspace-toolbar,
+html.eye .right-panel-toolbar {
+  background: var(--bg-panel) !important;
+}
+
+html.eye .workspace-chat-surface {
+  background-color: #d2d7dd;
+  background-blend-mode: multiply;
+}
+
+html.eye .chat-workspace.chat-session-workspace { background: var(--surface-raised); }
+
+html.eye .sidebar-header,
+html.eye .sidebar-utility-bar {
+  background: color-mix(in srgb, var(--bg-panel) 58%, transparent);
+}
+
+html.eye .sidebar-session-item.is-selected {
+  --text-muted: #5f6974;
+  --text-dim: #7c8691;
+}
+
+html.eye .chat-version-list span,
+html.eye .right-panel-launcher-icon { background: rgba(75, 130, 184, 0.1); }
+html.eye .chat-version-list span { color: var(--text-muted); }
+
+html.eye .sidebar-primary-navigation .sidebar-navigation-action:first-child,
+html.eye .chat-send-button:not(:disabled) {
+  box-shadow: 0 8px 18px rgba(49, 57, 67, 0.14) !important;
+}
+
+html.eye .chat-input-field {
+  box-shadow: 0 12px 28px rgba(49, 57, 67, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.46) !important;
+}
+
+html.eye .right-panel-launcher {
+  background-color: #d9dde2;
+  background-blend-mode: multiply;
+}
+
+html.eye .right-panel-launcher-item {
+  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: var(--surface-raised);
+  box-shadow: 0 8px 20px rgba(49, 57, 67, 0.045);
+}
+
+html.eye .right-panel-launcher-item:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: rgba(248, 249, 250, 0.88);
+  box-shadow: 0 12px 24px rgba(49, 57, 67, 0.1);
+}
+
 @media (min-width: 641px) {
   .sidebar-container.sidebar-open,
   .sidebar-container > * {
