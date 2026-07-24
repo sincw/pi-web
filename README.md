@@ -4,7 +4,11 @@
 
 Pivot UI is a responsive local workspace for the [pi coding agent](https://github.com/badlogic/pi-mono). It brings sessions, agent chat, project files, Git review, terminals, and agent configuration into one interface that works well on desktop and phone.
 
-<!-- Screenshot slot: add an overview image here, for example `docs/images/overview-desktop.png` (16:10 recommended). -->
+![Pivot UI desktop](./docs/image/desktop.png)
+
+## Origin and license
+
+Pivot UI is an independently maintained fork of [agegr/pi-web](https://github.com/agegr/pi-web). It is distributed under the [MIT License](./LICENSE).
 
 ## Built for active agent work
 
@@ -13,7 +17,7 @@ Pivot UI is a responsive local workspace for the [pi coding agent](https://githu
 - **Keep the project beside the chat**: browse the workspace, mention files with `@`, and preview source, Markdown, HTML, images, audio, PDF, and DOCX without leaving the conversation.
 - **Review the actual change**: open Changes, branch comparisons, and commit history in the right panel, with unified or side-by-side diffs for an individual file.
 
-<!-- Screenshot slot: add a project and Git review image here, for example `docs/images/review-panel.png` (16:10 recommended). -->
+![Git review](./docs/image/GitReview.png)
 
 ## One workspace, not just a chat window
 
@@ -22,6 +26,14 @@ Pivot UI is a responsive local workspace for the [pi coding agent](https://githu
 - **Models and authentication**: choose configured models, manage API keys and OAuth/device-code login, and test model connections from the UI.
 - **Skills, plugins, and MCP**: search and install skills, manage package plugins, keep reusable skills and MCP server definitions in a library, and apply versioned Skill Packs to a workspace with a preview before changes are written.
 - **Comfortable viewing**: switch among light, dark, and eye-comfort themes.
+
+## Reuse skills with Skill Packs
+
+A Skill Pack combines reusable skill snapshots with MCP server definitions, so a proven agent setup can be applied to another workspace. Build Packs from the shared library, preview the exact workspace changes, then confirm the apply.
+
+Each Pack records the version of its referenced skills and servers. Pivot UI blocks missing, stale, or conflicting references before changing the workspace, and protects MCP entries it does not own. After a Pack change, idle sessions reload their available skills; active sessions reload when the current run finishes.
+
+![Skill Packs](./docs/image/skill_packs.png)
 
 ## Made for desktop and mobile
 
@@ -32,7 +44,8 @@ Pivot UI changes its layout rather than only shrinking it on a narrow screen.
 - The right panel is closed by default on mobile and can be opened only when a file, review, or terminal needs attention.
 - The terminal includes touch-friendly controls, modifier keys, command history, and visual-viewport handling so the software keyboard does not cover the active prompt.
 
-<!-- Screenshot slot: add a phone-sized chat or terminal image here, for example `docs/images/mobile-terminal.png` (9:16 recommended). -->
+![Pivot UI on mobile](./docs/image/mobile1.jpg)
+![Pivot UI mobile terminal](./docs/image/mobile2.jpg)
 
 ## Quick start
 

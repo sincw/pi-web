@@ -13,6 +13,9 @@ const notoSansMono = Noto_Sans_Mono({
 export const metadata: Metadata = {
   title: "Pivot UI ",
   description: "Pi Coding Agent Web Interface",
+  icons: {
+    icon: "/pi-agent-mark.svg",
+  },
 };
 
 export default function RootLayout({

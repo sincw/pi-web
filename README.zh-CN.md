@@ -5,6 +5,11 @@
 Pivot UI 是 [pi 编程智能体](https://github.com/badlogic/pi-mono) 的响应式本地工作台。它把会话、Agent 对话、项目文件、Git 审查、终端和 Agent 配置放到同一个界面中，桌面和手机上都能高效使用。
 
 <!-- 配图位置：在这里加入总览图，例如 `docs/images/overview-desktop.png`，建议 16:10。 -->
+![Pi Web desktop](docs/image/desktop.png)
+
+## 来源与许可证
+
+Pivot UI 是 [agegr/pi-web](https://github.com/agegr/pi-web) 的独立维护 Fork，遵循 [MIT License](./LICENSE) 发布。
 
 ## 为持续的 Agent 工作而设计
 
@@ -14,6 +19,7 @@ Pivot UI 是 [pi 编程智能体](https://github.com/badlogic/pi-mono) 的响应
 - **审查真实改动**：右侧面板提供工作区改动、分支对比和提交历史，可按文件查看统一或左右对照 Diff。
 
 <!-- 配图位置：在这里加入项目文件和 Git Review 图，例如 `docs/images/review-panel.png`，建议 16:10。 -->
+![Pi Web shows the Git Review ](docs/image/GitReview.png)
 
 ## 不只是聊天窗口
 
@@ -22,6 +28,14 @@ Pivot UI 是 [pi 编程智能体](https://github.com/badlogic/pi-mono) 的响应
 - **模型和认证**：选择已配置模型，在界面中管理 API key、OAuth/设备码登录，并测试模型连接。
 - **Skills、插件和 MCP**：搜索和安装 Skills，管理包插件，把可复用 Skill 与 MCP server 存入库，并在写入前预览带版本快照的 Skill Pack 变更。
 - **舒适阅读**：可在浅色、深色和护眼主题之间切换。
+
+## 使用 Skill Packs 复用配置
+
+Skill Pack 将可复用的 Skill 快照与 MCP server 定义组合起来，让一套经过验证的 Agent 配置可以应用到另一个工作区。在共享库中创建 Pack，先预览工作区的准确变更，再确认应用。
+
+每个 Pack 都会记录所引用 Skill 和 server 的版本。Pivot UI 会在修改工作区前阻止缺失、过期或冲突的引用，并保护不属于它管理的 MCP 条目。Pack 变更后，空闲会话会重新加载可用 Skills；正在运行的会话会在当前任务结束后重新加载。
+
+![Skill Packs](./docs/image/skill_packs.png)
 
 ## 桌面和手机都适合使用
 
@@ -33,7 +47,8 @@ Pivot UI 在窄屏上会调整工作方式，而不只是缩小界面。
 - 终端提供触控友好的快捷控制、修饰键、命令历史和 Visual Viewport 处理，软键盘不会遮住正在输入的内容。
 
 <!-- 配图位置：在这里加入手机聊天或终端图，例如 `docs/images/mobile-terminal.png`，建议 9:16。 -->
-
+![Pi Web mobile1 ](docs/image/mobile1.jpg)
+![Pi Web mobile2 ](docs/image/mobile2.jpg)
 ## 快速开始
 
 从源码运行：
