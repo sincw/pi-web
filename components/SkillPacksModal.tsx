@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Search, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type {
   LibrarySkillInfo,
@@ -178,7 +179,7 @@ export function SkillPacksModal({
             title="Close skill packs"
             aria-label="Close skill packs"
           >
-            ×
+            <X size={18} aria-hidden="true" />
           </button>
         </header>
 
@@ -245,10 +246,7 @@ function ManageTab({
           </div>
           <label className="sr-only" htmlFor="skill-pack-search">Search packs</label>
           <div className="skill-packs-search">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m16 16 4 4" />
-            </svg>
+            <Search size={16} strokeWidth={2} aria-hidden="true" />
             <input
               id="skill-pack-search"
               value={query}
@@ -411,7 +409,7 @@ function PackEditor({
                       title={`Remove ${current?.name || s.skillKey}`}
                       aria-label={`Remove ${current?.name || s.skillKey}`}
                     >
-                      ×
+                      <X size={14} aria-hidden="true" />
                     </button>
                   </div>
                 </article>
@@ -445,7 +443,7 @@ function PackEditor({
                 <article key={server.serverKey} className="skill-pack-item">
                   <div className="skill-pack-item-header">
                     <span className="skill-pack-item-name">{current?.name || server.serverKey}</span>
-                    <button type="button" className="skill-pack-remove" onClick={() => setMcpServers((items) => items.filter((_, i) => i !== index))} disabled={saving} title={`Remove ${current?.name || server.serverKey}`} aria-label={`Remove ${current?.name || server.serverKey}`}>×</button>
+                    <button type="button" className="skill-pack-remove" onClick={() => setMcpServers((items) => items.filter((_, i) => i !== index))} disabled={saving} title={`Remove ${current?.name || server.serverKey}`} aria-label={`Remove ${current?.name || server.serverKey}`}><X size={14} aria-hidden="true" /></button>
                   </div>
                 </article>
               );

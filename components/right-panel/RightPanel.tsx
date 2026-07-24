@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Maximize2, Minimize2, PanelRightClose, Plus } from "lucide-react";
 import { TabBar, type Tab } from "../TabBar";
 import { FileTab } from "./FileTab";
 import { getRightPanelTool, rightPanelTools } from "./tool-registry";
@@ -39,27 +40,15 @@ function loadPanelState(cwd: string): SavedPanelState | null {
 }
 
 function PanelIcon({ size = 17 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
-    </svg>
-  );
+  return <PanelRightClose size={size} aria-hidden="true" />;
 }
 
 function AddToolIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
+  return <Plus size={19} aria-hidden="true" />;
 }
 
 function FullscreenIcon({ exit = false }: { exit?: boolean }) {
-  return exit ? (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4v5H4m11-5v5h5M9 20v-5H4m16 5v-5h-5" /></svg>
-  ) : (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M9 20H4v-5m11 5h5v-5" /></svg>
-  );
+  return exit ? <Minimize2 size={18} aria-hidden="true" /> : <Maximize2 size={18} aria-hidden="true" />;
 }
 
 function ToolLauncher({ disabled, onOpenTool }: { disabled: boolean; onOpenTool: (toolId: string) => void }) {

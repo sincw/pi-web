@@ -3,6 +3,7 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, FolderPlus, History, Pencil, Star, TerminalSquare, Trash2, X } from "lucide-react";
 import { FolderIcon } from "../FileIcons";
 import { getTerminalPopoverPlacement } from "@/lib/terminal-fab-layout";
 import { getTerminalVisibleHeight } from "@/lib/terminal-visual-viewport";
@@ -22,46 +23,32 @@ import { useTheme } from "@/hooks/useTheme";
 import type { RightPanelToolDefinition, RightPanelToolProps, ToolPanelTab } from "./types";
 
 function TerminalIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m5 6 5 5-5 5M13 17h6" />
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-    </svg>
-  );
+  return <TerminalSquare size={size} strokeWidth={1.9} aria-hidden="true" />;
 }
 
 function HistoryIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 12a9 9 0 1 0 3-6.7" />
-      <path d="M3 4v5h5M12 7v5l3 2" />
-    </svg>
-  );
+  return <History size={20} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 function StarIcon({ filled = false }: { filled?: boolean }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
-    </svg>
-  );
+  return <Star size={20} fill={filled ? "currentColor" : "none"} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 function FolderAddIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" /><path d="M15 11v6M12 14h6" /></svg>;
+  return <FolderPlus size={20} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 function PencilIcon() {
-  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14.5 5.5 4 4M4 20l4.3-1 10.9-10.9a2.8 2.8 0 0 0-4-4L4.3 15z" /></svg>;
+  return <Pencil size={19} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 function TrashIcon() {
-  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v5M14 11v5M9 7l1-3h4l1 3M6 7l1 13h10l1-13" /></svg>;
+  return <Trash2 size={19} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 function ActionIcon({ open }: { open: boolean }) {
   return open ? (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+    <X size={20} strokeWidth={2} aria-hidden="true" />
   ) : (
     <TerminalIcon size={20} />
   );
@@ -548,14 +535,14 @@ function TerminalTool({ cwd, projectRoot, tabId, tabLabel }: RightPanelToolProps
         }}>
           <button type="button" onClick={() => sendTerminalInput("\r")} title="回车" aria-label="回车">Enter</button>
           <button type="button" onClick={() => { setStickyModifier(null); setPasteOpen(true); }} title="粘贴或输入命令" aria-label="粘贴或输入命令">粘贴</button>
-          <button type="button" onClick={() => sendTerminalInput("\x1b[A")} title="上箭头" aria-label="上箭头">↑</button>
+          <button type="button" onClick={() => sendTerminalInput("\x1b[A")} title="上箭头" aria-label="上箭头"><ArrowUp size={16} aria-hidden="true" /></button>
           <button type="button" onClick={() => sendTerminalInput("\x1b")} title="取消" aria-label="取消">Esc</button>
           <button type="button" onClick={() => sendTerminalInput("\x1b[H")} title="行首" aria-label="行首">Home</button>
           <button type="button" onClick={() => sendTerminalInput("\x1b[F")} title="行尾" aria-label="行尾">End</button>
           <button type="button" onClick={() => sendTerminalInput("\t")} title="制表" aria-label="制表">Tab</button>
-          <button type="button" onClick={() => sendTerminalInput("\x1b[D")} title="左箭头" aria-label="左箭头">←</button>
-          <button type="button" onClick={() => sendTerminalInput("\x1b[B")} title="下箭头" aria-label="下箭头">↓</button>
-          <button type="button" onClick={() => sendTerminalInput("\x1b[C")} title="右箭头" aria-label="右箭头">→</button>
+          <button type="button" onClick={() => sendTerminalInput("\x1b[D")} title="左箭头" aria-label="左箭头"><ArrowLeft size={16} aria-hidden="true" /></button>
+          <button type="button" onClick={() => sendTerminalInput("\x1b[B")} title="下箭头" aria-label="下箭头"><ArrowDown size={16} aria-hidden="true" /></button>
+          <button type="button" onClick={() => sendTerminalInput("\x1b[C")} title="右箭头" aria-label="右箭头"><ArrowRight size={16} aria-hidden="true" /></button>
           <button type="button" className={terminalModifier === "ctrl" ? "is-active" : ""} onClick={() => toggleStickyModifier("ctrl")} title="Ctrl 修饰键" aria-label="Ctrl 修饰键" aria-pressed={terminalModifier === "ctrl"}>Ctrl</button>
           <button type="button" className={terminalModifier === "alt" ? "is-active" : ""} onClick={() => toggleStickyModifier("alt")} title="Alt 修饰键" aria-label="Alt 修饰键" aria-pressed={terminalModifier === "alt"}>Alt</button>
         </div>
@@ -579,9 +566,9 @@ function TerminalTool({ cwd, projectRoot, tabId, tabLabel }: RightPanelToolProps
             ))}
           </div>
           {visibleHistory.length > COMMANDS_PER_PAGE && <div className="terminal-mobile-pagination">
-            <button type="button" onClick={() => setHistoryPage((page) => page - 1)} disabled={historyPage === 0} title="上一页" aria-label="上一页">←</button>
+            <button type="button" onClick={() => setHistoryPage((page) => page - 1)} disabled={historyPage === 0} title="上一页" aria-label="上一页"><ArrowLeft size={15} aria-hidden="true" /></button>
             <span>{historyPage + 1} / {historyPages}</span>
-            <button type="button" onClick={() => setHistoryPage((page) => page + 1)} disabled={historyPage >= historyPages - 1} title="下一页" aria-label="下一页">→</button>
+            <button type="button" onClick={() => setHistoryPage((page) => page + 1)} disabled={historyPage >= historyPages - 1} title="下一页" aria-label="下一页"><ArrowRight size={15} aria-hidden="true" /></button>
           </div>}
           </div>
         )}
@@ -597,15 +584,15 @@ function TerminalTool({ cwd, projectRoot, tabId, tabLabel }: RightPanelToolProps
                 setFavoritePage(0);
                 setFolderDraftOpen(false);
               }
-            }} title="返回" aria-label="返回">←</button>}
+            }} title="返回" aria-label="返回"><ArrowLeft size={16} aria-hidden="true" /></button>}
             <div className="terminal-mobile-popover-heading">{favoriteCommand ? "收藏到" : favoriteFolder?.name ?? "命令收藏"}</div>
             {!favoriteFolder && <button type="button" className="terminal-mobile-heading-button" onClick={() => { setFolderEditingId(null); setFolderDraft(""); setFolderDraftOpen(true); }} title="新建文件夹" aria-label="新建文件夹"><FolderAddIcon /></button>}
           </div>
           {folderDraftOpen && <div className="terminal-mobile-folder-editor">
             <form className="terminal-mobile-folder-form" onSubmit={(event) => { event.preventDefault(); saveFavoriteFolder(); }}>
               <input value={folderDraft} onChange={(event) => setFolderDraft(event.target.value)} placeholder="文件夹名称" aria-label="文件夹名称" autoFocus maxLength={40} />
-              <button type="submit" disabled={!folderDraft.trim() || folderNameTaken} title={folderNameTaken ? "已有同名文件夹" : "保存文件夹"} aria-label="保存文件夹">✓</button>
-              <button type="button" onClick={closeFolderEditor} title="取消" aria-label="取消">×</button>
+              <button type="submit" disabled={!folderDraft.trim() || folderNameTaken} title={folderNameTaken ? "已有同名文件夹" : "保存文件夹"} aria-label="保存文件夹"><Check size={15} aria-hidden="true" /></button>
+              <button type="button" onClick={closeFolderEditor} title="取消" aria-label="取消"><X size={15} aria-hidden="true" /></button>
             </form>
             {folderEditingId && <button type="button" className="terminal-mobile-folder-delete" onClick={() => deleteFavoriteFolder(folderEditingId)}><TrashIcon />删除文件夹</button>}
           </div>}
@@ -617,9 +604,9 @@ function TerminalTool({ cwd, projectRoot, tabId, tabLabel }: RightPanelToolProps
                 ))}
               </div>
               {favorites.folders.length > COMMANDS_PER_PAGE && <div className="terminal-mobile-pagination">
-                <button type="button" onClick={() => setFolderPage((page) => page - 1)} disabled={folderPage === 0} title="上一页" aria-label="上一页">←</button>
+                <button type="button" onClick={() => setFolderPage((page) => page - 1)} disabled={folderPage === 0} title="上一页" aria-label="上一页"><ArrowLeft size={15} aria-hidden="true" /></button>
                 <span>{folderPage + 1} / {folderPages}</span>
-                <button type="button" onClick={() => setFolderPage((page) => page + 1)} disabled={folderPage >= folderPages - 1} title="下一页" aria-label="下一页">→</button>
+                <button type="button" onClick={() => setFolderPage((page) => page + 1)} disabled={folderPage >= folderPages - 1} title="下一页" aria-label="下一页"><ArrowRight size={15} aria-hidden="true" /></button>
               </div>}
             </>
           ) : favoriteFolder ? (
@@ -633,9 +620,9 @@ function TerminalTool({ cwd, projectRoot, tabId, tabLabel }: RightPanelToolProps
                 ))}
               </div>
               {favoriteFolder.commands.length > COMMANDS_PER_PAGE && <div className="terminal-mobile-pagination">
-                <button type="button" onClick={() => setFavoritePage((page) => page - 1)} disabled={favoritePage === 0} title="上一页" aria-label="上一页">←</button>
+                <button type="button" onClick={() => setFavoritePage((page) => page - 1)} disabled={favoritePage === 0} title="上一页" aria-label="上一页"><ArrowLeft size={15} aria-hidden="true" /></button>
                 <span>{favoritePage + 1} / {favoritePages}</span>
-                <button type="button" onClick={() => setFavoritePage((page) => page + 1)} disabled={favoritePage >= favoritePages - 1} title="下一页" aria-label="下一页">→</button>
+                <button type="button" onClick={() => setFavoritePage((page) => page + 1)} disabled={favoritePage >= favoritePages - 1} title="下一页" aria-label="下一页"><ArrowRight size={15} aria-hidden="true" /></button>
               </div>}
             </>
           ) : (
@@ -649,9 +636,9 @@ function TerminalTool({ cwd, projectRoot, tabId, tabLabel }: RightPanelToolProps
                 ))}
               </div>
               {favorites.folders.length > COMMANDS_PER_PAGE && <div className="terminal-mobile-pagination">
-                <button type="button" onClick={() => setFolderPage((page) => page - 1)} disabled={folderPage === 0} title="上一页" aria-label="上一页">←</button>
+                <button type="button" onClick={() => setFolderPage((page) => page - 1)} disabled={folderPage === 0} title="上一页" aria-label="上一页"><ArrowLeft size={15} aria-hidden="true" /></button>
                 <span>{folderPage + 1} / {folderPages}</span>
-                <button type="button" onClick={() => setFolderPage((page) => page + 1)} disabled={folderPage >= folderPages - 1} title="下一页" aria-label="下一页">→</button>
+                <button type="button" onClick={() => setFolderPage((page) => page + 1)} disabled={folderPage >= folderPages - 1} title="下一页" aria-label="下一页"><ArrowRight size={15} aria-hidden="true" /></button>
               </div>}
             </>
           )}

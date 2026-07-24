@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
 import type {
   AppliedPackInfo,
   ApplyPreviewResponse,
@@ -121,7 +122,7 @@ export function WorkspacePacks({
             >
               {pack.packName || pack.packId}
               {pack.status === "partial" && <span style={{ fontSize: 10, fontWeight: 600 }}>· 有跳过</span>}
-              <button onClick={() => void removeTag(pack.packId)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 13, padding: 0, lineHeight: 1 }}>×</button>
+              <button onClick={() => void removeTag(pack.packId)} aria-label={`Remove ${pack.packName || pack.packId}`} style={{ display: "grid", placeItems: "center", background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}><X size={13} aria-hidden="true" /></button>
             </span>
           );
         })}

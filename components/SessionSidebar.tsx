@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { Box, Check, ChevronDown, ChevronRight, CirclePlus, Folder, FolderPlus, GitFork, LoaderCircle, MoreHorizontal, Network, PanelLeftClose, Pencil, PlugZap, RefreshCw, Search, Trash2, X } from "lucide-react";
 import type { SessionInfo } from "@/lib/types";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { WorkspaceFileTree } from "./WorkspaceFileTree";
@@ -239,9 +240,9 @@ function DirectoryPickerModal({ open, onClose, onSelect }: { open: boolean; onCl
     >
       <div className="modal-surface" role="dialog" aria-modal="true" aria-label="Select project folder" style={{ width: "min(720px, 100%)", height: "min(620px, calc(100dvh - 32px))", display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-panel)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4l2 2.5h7A2.5 2.5 0 0 1 21 9v8.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" /></svg>
+          <Folder size={21} strokeWidth={2} aria-hidden="true" />
           <div style={{ flex: 1, minWidth: 0 }}><strong style={{ display: "block", fontSize: 16 }}>Select project folder</strong><span style={{ color: "var(--text-muted)", fontSize: 12 }}>Browse folders inside your home directory.</span></div>
-          <button type="button" onClick={onClose} title="Close" aria-label="Close" style={{ width: 32, height: 32, padding: 0, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 24, lineHeight: 1 }}>×</button>
+          <button type="button" onClick={onClose} title="Close" aria-label="Close" style={{ display: "grid", placeItems: "center", width: 32, height: 32, padding: 0, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}><X size={18} aria-hidden="true" /></button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, padding: "10px 16px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)", fontSize: 12 }}>
           {crumbs.map((crumb, index) => <span key={crumb.path} style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
@@ -254,9 +255,9 @@ function DirectoryPickerModal({ open, onClose, onSelect }: { open: boolean; onCl
           {!loading && error && <div style={{ padding: 14, color: "#dc2626", fontSize: 13 }}>{error}</div>}
           {!loading && !error && listing?.entries.length === 0 && <div style={{ padding: 14, color: "var(--text-muted)", fontSize: 13 }}>This folder has no subfolders.</div>}
           {!loading && listing?.entries.map((entry) => <button key={entry.path} type="button" onClick={() => void loadDirectory(entry.path)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", minHeight: 40, padding: "0 10px", background: "none", border: "none", borderRadius: 5, color: "var(--text)", cursor: "pointer", textAlign: "left" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--accent)", flexShrink: 0 }}><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4l2 2.5h7A2.5 2.5 0 0 1 21 9v8.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" /></svg>
+            <Folder size={18} strokeWidth={2} aria-hidden="true" style={{ color: "var(--accent)", flexShrink: 0 }} />
             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13 }}>{entry.name}</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--text-dim)", flexShrink: 0 }}><path d="m9 18 6-6-6-6" /></svg>
+            <ChevronRight size={16} strokeWidth={2} aria-hidden="true" style={{ color: "var(--text-dim)", flexShrink: 0 }} />
           </button>)}
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderTop: "1px solid var(--border)" }}>
@@ -834,23 +835,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               title="Refresh sessions"
               aria-label="Refresh sessions"
             >
-              {sessionRefreshDone ? (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-              )}
+              {sessionRefreshDone ? <Check size={15} strokeWidth={2.5} color="#4ade80" aria-hidden="true" /> : <RefreshCw size={15} strokeWidth={1.8} aria-hidden="true" />}
             </button>
             {onClose && (
               <button type="button" className="sidebar-close-button" onClick={onClose} title="Close navigation" aria-label="Close navigation">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <line x1="14" y1="3" x2="14" y2="21" />
-                </svg>
+                <PanelLeftClose size={17} strokeWidth={1.8} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -858,29 +847,19 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
 
         <nav className="sidebar-primary-navigation" aria-label="Workspace actions">
           <SidebarNavigationAction label="New session" disabled={!selectedCwd} onClick={handleNewSession}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="8.5" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
+            <CirclePlus size={19} strokeWidth={1.8} aria-hidden="true" />
           </SidebarNavigationAction>
           <SidebarNavigationAction label="Skills" disabled={!selectedCwd || !onOpenSkills} onClick={() => onOpenSkills?.()}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="9" cy="9" r="5.5" /><path d="m13 13 6.2 6.2" /><path d="M5.2 13.1 3 15.3" />
-            </svg>
+            <Search size={19} strokeWidth={1.8} aria-hidden="true" />
           </SidebarNavigationAction>
           <SidebarNavigationAction label="MCP" disabled={!selectedCwd || !onOpenMcp} onClick={() => onOpenMcp?.()}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 7v10" /><path d="M17 7v10" /><path d="M7 12h10" /><circle cx="7" cy="7" r="2" /><circle cx="17" cy="7" r="2" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" />
-            </svg>
+            <Network size={19} strokeWidth={1.8} aria-hidden="true" />
           </SidebarNavigationAction>
           <SidebarNavigationAction label="Packs" disabled={!selectedCwd || !onOpenPacks} onClick={() => onOpenPacks?.()}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
-            </svg>
+            <Box size={19} strokeWidth={1.8} aria-hidden="true" />
           </SidebarNavigationAction>
           <SidebarNavigationAction label="Plugins" disabled={!selectedCwd || !onOpenPlugins} onClick={() => onOpenPlugins?.()}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 5v5a3 3 0 0 0 6 0V5" /><path d="M17 19v-5a3 3 0 0 0-6 0v5" /><path d="M7 5H5a2 2 0 0 0-2 2v2" /><path d="M17 19h2a2 2 0 0 0 2-2v-2" />
-            </svg>
+            <PlugZap size={19} strokeWidth={1.8} aria-hidden="true" />
           </SidebarNavigationAction>
         </nav>
 
@@ -896,10 +875,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             title="New workspace"
             aria-label="New workspace"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2.5h6A2.5 2.5 0 0 1 20.5 10v7.5A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z" />
-              <line x1="12" y1="10" x2="12" y2="16" /><line x1="9" y1="13" x2="15" y2="13" />
-            </svg>
+            <FolderPlus size={14} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
         <div ref={dropdownRef} className="sidebar-project-picker" style={{ position: "relative" }}>
@@ -914,14 +890,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   onClick={() => isSelected ? setDropdownOpen(true) : handleProjectSelect(project)}
                   title={displayCwd(project, homeDir)}
                 >
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M3.5 6.5A2.5 2.5 0 0 1 6 4h4l2 2.5h6A2.5 2.5 0 0 1 20.5 9v8.5A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z" />
-                  </svg>
+                  <Folder size={17} strokeWidth={1.8} aria-hidden="true" />
                   <span>{projectLabel(project)}</span>
                   {isSelected && (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0, width: isMobile ? 28 : 24, height: isMobile ? 28 : 24 }}>
-                      <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
-                    </svg>
+                    <MoreHorizontal size={isMobile ? 28 : 24} strokeWidth={1.8} aria-hidden="true" style={{ flexShrink: 0 }} />
                   )}
                 </button>
               );
@@ -932,9 +904,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 className="sidebar-project-row"
                 onClick={() => setDropdownOpen(true)}
               >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3.5 6.5A2.5 2.5 0 0 1 6 4h4l2 2.5h6A2.5 2.5 0 0 1 20.5 9v8.5A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z" />
-                </svg>
+                <Folder size={17} strokeWidth={1.8} aria-hidden="true" />
                 <span>{initialSessionId && !restoredRef.current ? "" : "Select workspace..."}</span>
               </button>
             )}
@@ -1009,11 +979,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       }}
                       title={project}
                     >
-                      {project === selectedProject && (
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                          <polyline points="1.5 5 4 7.5 8.5 2.5" />
-                        </svg>
-                      )}
+                      {project === selectedProject && <Check size={11} strokeWidth={2.2} color="var(--accent)" aria-hidden="true" style={{ flexShrink: 0 }} />}
                       {project !== selectedProject && <span style={{ width: 10, flexShrink: 0 }} />}
                       <PathLabel text={displayCwd(project, homeDir)} style={{ flex: 1 }} />
                     </button>
@@ -1024,9 +990,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       aria-label={`Remove ${displayCwd(project, homeDir)} workspace`}
                       style={{ display: "grid", placeItems: "center", width: 32, flex: "0 0 32px", padding: 0, background: "var(--bg)", border: "none", color: "var(--text-dim)", cursor: "pointer" }}
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M3 6h18M9 6V4h6v2m-8 0 1 15h8l1-15M10 11v6m4-6v6" />
-                      </svg>
+                      <Trash2 size={15} strokeWidth={1.8} aria-hidden="true" />
                     </button>
                   </div>
                 ))}
@@ -1040,7 +1004,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 onClick={(e) => { e.stopPropagation(); handleDefaultCwd(); }}
                 style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", background: "none", border: "none", borderTop: visibleProjects.length > 0 ? "1px solid var(--border)" : "none", color: "var(--text-muted)", cursor: "pointer", textAlign: "left", fontSize: 11 }}
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" /></svg>
+                <Folder size={10} strokeWidth={1.1} aria-hidden="true" style={{ flexShrink: 0 }} />
                 <span>Use default directory</span>
               </button>
               <button
@@ -1048,7 +1012,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); setDirectoryPickerOpen(true); }}
                 style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", textAlign: "left", fontSize: 11 }}
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" /></svg>
+                <Folder size={10} strokeWidth={1.1} aria-hidden="true" style={{ flexShrink: 0 }} />
                 <span>Choose folder...</span>
               </button>
           </AnimatedDropdown>
@@ -1065,9 +1029,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             title="Refresh sessions"
             aria-label="Refresh sessions"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 4v5h-5" /><path d="M4 20v-5h5" /><path d="M5.7 9a7 7 0 0 1 11.6-2.6L20 9" /><path d="M18.3 15A7 7 0 0 1 6.7 17.6L4 15" />
-            </svg>
+            <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
         <div className="sidebar-session-list">
@@ -1138,13 +1100,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 textAlign: "left",
               }}
             >
-              <svg
-                width="9" height="9" viewBox="0 0 10 10" fill="none"
-                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: explorerOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }}
-              >
-                <polyline points="3 2 7 5 3 8" />
-              </svg>
+              <ChevronRight size={9} strokeWidth={1.8} aria-hidden="true" style={{ transform: explorerOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }} />
               Explorer
             </button>
             <button
@@ -1170,14 +1126,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               onMouseLeave={(e) => { if (explorerRefreshDone) return; e.currentTarget.style.color = "var(--text-dim)"; e.currentTarget.style.background = "none"; }}
             >
               {explorerRefreshDone ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <Check size={13} strokeWidth={2.5} aria-hidden="true" style={{ color: "#4ade80" }} />
               ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
+                <RefreshCw size={13} strokeWidth={2} aria-hidden="true" />
               )}
             </button>
           </div>
@@ -1287,24 +1238,7 @@ function RunningSessionIndicator() {
         color: "var(--accent)",
       }}
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "block" }}>
-        <g>
-          <path
-            d="M21 12a9 9 0 1 1-3.8-7.4"
-            stroke="currentColor"
-            strokeWidth="2.8"
-            strokeLinecap="round"
-          />
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 12 12"
-            to="360 12 12"
-            dur="0.9s"
-            repeatCount="indefinite"
-          />
-        </g>
-      </svg>
+      <LoaderCircle size={14} strokeWidth={2.8} aria-hidden="true" style={{ display: "block", animation: "spin 0.9s linear infinite" }} />
     </span>
   );
 }
@@ -1324,13 +1258,10 @@ function UnreadSessionIndicator() {
         color: "#0891b2",
       }}
     >
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ display: "block" }}>
-        <circle cx="7" cy="7" r="2.5" fill="currentColor" />
-        <circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.4" opacity="0.32">
-          <animate attributeName="r" values="3;6;3" dur="1.6s" repeatCount="indefinite" />
-          <animate attributeName="opacity" values="0.32;0;0.32" dur="1.6s" repeatCount="indefinite" />
-        </circle>
-      </svg>
+      <span aria-hidden="true" style={{ position: "relative", display: "block", width: 14, height: 14 }}>
+        <span style={{ position: "absolute", inset: 4, borderRadius: "50%", background: "currentColor" }} />
+        <span style={{ position: "absolute", inset: 2, border: "1.4px solid currentColor", borderRadius: "50%", opacity: 0.32, animation: "pulse 1.6s ease-in-out infinite" }} />
+      </span>
     </span>
   );
 }
@@ -1460,12 +1391,7 @@ function SessionItem({
                 whiteSpace: "nowrap",
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                <path d="M10 11v6M14 11v6" />
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-              </svg>
+              <Trash2 size={12} strokeWidth={2} aria-hidden="true" />
               Delete
             </button>
             <button
@@ -1512,12 +1438,7 @@ function SessionItem({
         <>
           {/* Fork indicator for child sessions */}
           {depth > 0 && (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <line x1="6" y1="3" x2="6" y2="15" />
-              <circle cx="18" cy="6" r="3" />
-              <circle cx="6" cy="18" r="3" />
-              <path d="M18 9a9 9 0 0 1-9 9" />
-            </svg>
+            <GitFork size={10} strokeWidth={2} aria-hidden="true" style={{ color: "var(--text-dim)", flexShrink: 0 }} />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
@@ -1546,12 +1467,7 @@ function SessionItem({
                   title={`Worktree: ${session.cwd}`}
                   style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent)", minWidth: 0, overflow: "hidden" }}
                 >
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <line x1="6" y1="3" x2="6" y2="15" />
-                    <circle cx="18" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M18 9a9 9 0 0 1-9 9" />
-                  </svg>
+                  <GitFork size={9} strokeWidth={2.4} aria-hidden="true" style={{ flexShrink: 0 }} />
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.worktreeBranch}</span>
                 </span>
               )}
@@ -1572,9 +1488,7 @@ function SessionItem({
                 transition: "transform 0.15s",
               }}
             >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="2 3.5 5 6.5 8 3.5" />
-              </svg>
+              <ChevronDown size={10} strokeWidth={1.8} aria-hidden="true" />
             </button>
           )}
 
@@ -1603,9 +1517,7 @@ function SessionItem({
                   e.currentTarget.style.borderColor = "var(--border)";
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                </svg>
+                <Pencil size={14} strokeWidth={2} aria-hidden="true" />
               </button>
               <button
                 onClick={handleDeleteClick}
@@ -1629,12 +1541,7 @@ function SessionItem({
                   e.currentTarget.style.borderColor = "var(--border)";
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6M14 11v6" />
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
+                <Trash2 size={14} strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
           )}

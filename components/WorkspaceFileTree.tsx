@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AtSign, Check, ChevronRight, ChevronUp, Eye, EyeOff, LoaderCircle, Plus, RefreshCw, Search, X } from "lucide-react";
 import { FolderIcon, getFileIcon } from "./FileIcons";
 import { encodeFilePathForApi, getRelativeFilePath, joinFilePath } from "@/lib/file-paths";
 
@@ -372,15 +373,15 @@ export function WorkspaceFileTree({ cwd, onOpenFile, refreshKey, revealRequest, 
       {showToolbar && (
         <div className="workspace-file-tree-toolbar">
           <label className="workspace-file-tree-search">
-            <span aria-hidden="true">⌕</span>
+            <Search size={14} strokeWidth={1.8} aria-hidden="true" />
             <input value={query} onChange={(event) => setQuery(event.currentTarget.value)} placeholder="Search files" aria-label="Search files" />
-            {query && <button type="button" onClick={() => setQuery("")} title="Clear search" aria-label="Clear search">×</button>}
+            {query && <button type="button" onClick={() => setQuery("")} title="Clear search" aria-label="Clear search"><X size={14} aria-hidden="true" /></button>}
           </label>
-          <button type="button" className="workspace-file-tree-icon-button" onClick={() => setExpanded(new Set())} title="Collapse all folders" aria-label="Collapse all folders">⌃</button>
-          <button type="button" className="workspace-file-tree-icon-button" onClick={refreshVisible} title="Refresh files" aria-label="Refresh files">↻</button>
-          <button type="button" className={`workspace-file-tree-icon-button${showHidden ? " is-active" : ""}`} onClick={() => setShowHidden((current) => !current)} title={showHidden ? "Hide hidden files" : "Show hidden files"} aria-label={showHidden ? "Hide hidden files" : "Show hidden files"}>·</button>
+          <button type="button" className="workspace-file-tree-icon-button" onClick={() => setExpanded(new Set())} title="Collapse all folders" aria-label="Collapse all folders"><ChevronUp size={15} aria-hidden="true" /></button>
+          <button type="button" className="workspace-file-tree-icon-button" onClick={refreshVisible} title="Refresh files" aria-label="Refresh files"><RefreshCw size={14} aria-hidden="true" /></button>
+          <button type="button" className={`workspace-file-tree-icon-button${showHidden ? " is-active" : ""}`} onClick={() => setShowHidden((current) => !current)} title={showHidden ? "Hide hidden files" : "Show hidden files"} aria-label={showHidden ? "Hide hidden files" : "Show hidden files"}>{showHidden ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}</button>
           {allowMutations && <div className="workspace-file-tree-new">
-            <button type="button" className="workspace-file-tree-icon-button" onClick={() => setNewMenuOpen((open) => !open)} title="New file or folder" aria-label="New file or folder">+</button>
+            <button type="button" className="workspace-file-tree-icon-button" onClick={() => setNewMenuOpen((open) => !open)} title="New file or folder" aria-label="New file or folder"><Plus size={15} aria-hidden="true" /></button>
             {newMenuOpen && <div role="menu">
               <button type="button" role="menuitem" onClick={() => startMutation("create-file", selectedPath)}>New file</button>
               <button type="button" role="menuitem" onClick={() => startMutation("create-folder", selectedPath)}>New folder</button>
@@ -391,8 +392,8 @@ export function WorkspaceFileTree({ cwd, onOpenFile, refreshKey, revealRequest, 
 
       {pendingAction && <form className="workspace-file-tree-edit" onSubmit={(event) => { event.preventDefault(); void submitMutation(); }}>
         <input autoFocus disabled={mutationBusy} value={draftName} onChange={(event) => setDraftName(event.currentTarget.value)} placeholder={pendingAction.action === "rename" ? "New name" : pendingAction.action === "create-file" ? "New file name" : "New folder name"} aria-label={pendingAction.action === "rename" ? "New name" : pendingAction.action === "create-file" ? "New file name" : "New folder name"} />
-        <button type="submit" disabled={mutationBusy} title="Save" aria-label="Save">{mutationBusy ? "·" : "✓"}</button>
-        <button type="button" disabled={mutationBusy} onClick={() => { setPendingAction(null); setMutationError(""); }} title="Cancel" aria-label="Cancel">×</button>
+        <button type="submit" disabled={mutationBusy} title="Save" aria-label="Save">{mutationBusy ? <LoaderCircle size={14} aria-hidden="true" style={{ animation: "spin 0.8s linear infinite" }} /> : <Check size={14} aria-hidden="true" />}</button>
+        <button type="button" disabled={mutationBusy} onClick={() => { setPendingAction(null); setMutationError(""); }} title="Cancel" aria-label="Cancel"><X size={14} aria-hidden="true" /></button>
       </form>}
       {mutationError && <div className="workspace-file-tree-error workspace-file-tree-mutation-error">{mutationError}</div>}
       {revealingPath && <div className="workspace-file-tree-reveal-status" role="status"><span aria-hidden="true" />Revealing {revealingPath}</div>}
@@ -435,7 +436,7 @@ export function WorkspaceFileTree({ cwd, onOpenFile, refreshKey, revealRequest, 
               setContextMenu({ path, x: Math.max(8, Math.min(event.clientX - bounds.left, bounds.width - 196)), y: Math.max(8, Math.min(event.clientY - bounds.top, bounds.height - 280)) });
             }}>
               {node.isDir ? (
-                <button type="button" className="workspace-file-tree-toggle" onClick={() => toggleDirectory(path)} title={isExpanded ? "Collapse folder" : "Expand folder"} aria-label={isExpanded ? "Collapse folder" : "Expand folder"} aria-busy={node.loading}>{node.loading ? <span className="workspace-file-tree-toggle-spinner" /> : isExpanded ? "⌄" : "›"}</button>
+                <button type="button" className="workspace-file-tree-toggle" onClick={() => toggleDirectory(path)} title={isExpanded ? "Collapse folder" : "Expand folder"} aria-label={isExpanded ? "Collapse folder" : "Expand folder"} aria-busy={node.loading}>{node.loading ? <span className="workspace-file-tree-toggle-spinner" /> : <ChevronRight size={14} strokeWidth={1.8} aria-hidden="true" style={{ transform: isExpanded ? "rotate(90deg)" : "none" }} />}</button>
               ) : <span className="workspace-file-tree-toggle" />}
               <button type="button" className="workspace-file-tree-name" onClick={() => setSelectedPath(path)} onDoubleClick={() => node.isDir ? toggleDirectory(path) : onOpenFile(joinFilePath(cwd, path), node.name)} onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
@@ -446,7 +447,7 @@ export function WorkspaceFileTree({ cwd, onOpenFile, refreshKey, revealRequest, 
                 {node.isDir ? <FolderIcon size={15} open={isExpanded} /> : getFileIcon(node.name, 14)}
                 <span>{node.name}</span>
               </button>
-              {onAtMention && <button type="button" className="workspace-file-tree-row-action" onClick={() => onAtMention(getRelativeFilePath(joinFilePath(cwd, path), cwd), node.isDir)} title="Insert into chat" aria-label={`Insert ${path} into chat`}>@</button>}
+              {onAtMention && <button type="button" className="workspace-file-tree-row-action" onClick={() => onAtMention(getRelativeFilePath(joinFilePath(cwd, path), cwd), node.isDir)} title="Insert into chat" aria-label={`Insert ${path} into chat`}><AtSign size={13} aria-hidden="true" /></button>}
               {node.error && <span className="workspace-file-tree-row-error" title={node.error}>!</span>}
             </div>
           );

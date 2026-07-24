@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pencil, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { LibraryMcpServerInfo, WorkspaceMcpServerInfo } from "@/lib/api-types";
 
@@ -197,7 +198,7 @@ function LibraryTab({ refreshKey, onEdit }: { refreshKey: number; onEdit: (serve
           : visible.length === 0 ? <div className="skills-market-empty">No library MCP servers match this search.</div>
             : <div className="skill-card-grid mcp-library-grid">{visible.map((server) => (
               <article className="skill-library-card" key={server.serverKey}>
-                <div className="skill-market-card-heading"><span className="skill-source-mark" aria-hidden="true">{server.serverKey.slice(0, 1).toUpperCase()}</span><strong title={server.name}>{server.name}</strong><button type="button" className="skill-library-edit" onClick={() => onEdit(server.serverKey)} title={`Edit ${server.name}`} aria-label={`Edit ${server.name}`}>✎</button><button type="button" className="skill-library-remove" onClick={() => void removeServer(server)} disabled={removing === server.serverKey} title={`Remove ${server.name} from library`} aria-label={`Remove ${server.name} from library`}>×</button></div>
+                <div className="skill-market-card-heading"><span className="skill-source-mark" aria-hidden="true">{server.serverKey.slice(0, 1).toUpperCase()}</span><strong title={server.name}>{server.name}</strong><button type="button" className="skill-library-edit" onClick={() => onEdit(server.serverKey)} title={`Edit ${server.name}`} aria-label={`Edit ${server.name}`}><Pencil size={14} aria-hidden="true" /></button><button type="button" className="skill-library-remove" onClick={() => void removeServer(server)} disabled={removing === server.serverKey} title={`Remove ${server.name} from library`} aria-label={`Remove ${server.name} from library`}><X size={14} aria-hidden="true" /></button></div>
               </article>
             ))}</div>}
     </div>
@@ -304,7 +305,7 @@ export function McpConfig({ cwd, onClose }: { cwd: string; onClose: () => void }
       <div className="modal-surface" style={{ width: isMobile ? "calc(100vw - 16px)" : 860, maxWidth: "calc(100vw - 16px)", height: isMobile ? "calc(100dvh - 16px)" : "78vh", maxHeight: "calc(100dvh - 16px)", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, display: "flex", flexDirection: "column", boxShadow: "0 8px 32px rgba(0,0,0,0.18)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>MCP</span><code style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shortenPath(cwd)}</code></div>
-          <button type="button" onClick={onClose} aria-label="Close MCP configuration" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "2px 6px" }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close MCP configuration" style={{ display: "grid", placeItems: "center", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "2px 6px" }}><X size={18} aria-hidden="true" /></button>
         </div>
         <div style={{ display: "flex", gap: 2, padding: "8px 18px 0", borderBottom: "1px solid var(--border)", flexShrink: 0, background: "var(--bg-panel)" }}>
           {tabs.map((item) => <button key={item.key} type="button" onClick={() => { setTab(item.key); if (item.key === "acquire") setEditServerKey(null); }} style={{ padding: "8px 14px", fontSize: 13, border: "none", borderBottom: tab === item.key ? "2px solid #705ef6" : "2px solid transparent", background: "none", color: tab === item.key ? "var(--text)" : "var(--text-dim)", cursor: "pointer", fontWeight: tab === item.key ? 600 : 400 }}>{item.label}</button>)}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { ArrowUp, ExternalLink, Plus, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { WorkspacePacks } from "./WorkspacePacks";
 import type {
@@ -213,7 +214,7 @@ function SkillDetail({
                 whiteSpace: "nowrap",
               }}
             >
-              {skill.install.skillsShUrl.replace(/^https?:\/\//, "")} ↗
+              {skill.install.skillsShUrl.replace(/^https?:\/\//, "")} <ExternalLink size={12} aria-hidden="true" style={{ verticalAlign: "-2px" }} />
             </span>
           </a>
         </div>
@@ -921,7 +922,7 @@ function LibraryTab() {
                 <span className="skill-source-mark" aria-hidden="true">{skill.name.slice(0, 1).toUpperCase()}</span>
                 <strong title={skill.name}>{skill.name}</strong>
                 <span className="skill-library-card-hash" title={`Content hash ${skill.contentHash}`}>{shortHash(skill.contentHash)}</span>
-                <button type="button" className="skill-library-remove" onClick={() => void removeSkill(skill)} disabled={removing === skill.skillKey} title={`Remove ${skill.name} from library`} aria-label={`Remove ${skill.name} from library`}>×</button>
+                <button type="button" className="skill-library-remove" onClick={() => void removeSkill(skill)} disabled={removing === skill.skillKey} title={`Remove ${skill.name} from library`} aria-label={`Remove ${skill.name} from library`}><X size={14} aria-hidden="true" /></button>
               </div>
               {skill.description && <p>{skill.description}</p>}
               <div className="skill-card-meta">
@@ -1210,7 +1211,7 @@ export function SkillsConfig({
               padding: "2px 6px",
             }}
           >
-            ×
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
@@ -1396,7 +1397,7 @@ export function SkillsConfig({
                                         title="Update available"
                                         style={{ color: "#d97706", fontSize: 13, lineHeight: 1, flexShrink: 0 }}
                                       >
-                                        ↑
+                                        <ArrowUp size={13} aria-hidden="true" />
                                       </span>
                                     );
                                   })()}
@@ -1428,10 +1429,7 @@ export function SkillsConfig({
                       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                     >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
+                      <Plus size={13} strokeWidth={2} aria-hidden="true" />
                       Add skill
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { ChevronRight, ImagePlus } from "lucide-react";
 import type { AgentMessage, AssistantContentBlock, AssistantMessage, ExtensionUiRequest, SessionInfo, SessionTreeNode, ToolResultMessage } from "@/lib/types";
 import { normalizeCustomPanelLines, parseAnsiLine } from "@/lib/ansi";
 import { countToolCallBlocks, getDisplayableAssistantBlocks, splitFinalAssistantBlocks } from "@/lib/message-display";
@@ -122,9 +123,7 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, children }: { messag
         }}
         title={expanded ? "Collapse process details" : "Expand process details"}
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
-          <polyline points="4 2.5 7.5 6 4 9.5" />
-        </svg>
+        <ChevronRight size={12} strokeWidth={1.6} aria-hidden="true" style={{ flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {parts.join(" · ")}
         </span>
@@ -330,24 +329,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
               />
             ))}
           </div>
-          <svg
-            width="280" height="280" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg"
-            className="drop-shadow-[0_6px_18px_rgba(37,99,235,0.18)]"
-          >
-            <rect x="28" y="44" width="84" height="60" rx="8" fill="rgba(37,99,235,0.08)" stroke="rgba(37,99,235,0.50)" strokeWidth="1.8"/>
-            <path d="M36 100 L54 72 L68 88 L80 74 L104 100Z" fill="rgba(37,99,235,0.16)" stroke="rgba(37,99,235,0.40)" strokeWidth="1.4" strokeLinejoin="round"/>
-            <circle cx="96" cy="58" r="8" fill="rgba(37,99,235,0.22)" stroke="rgba(37,99,235,0.55)" strokeWidth="1.6"/>
-            <g stroke="rgba(37,99,235,0.45)" strokeWidth="1.4" strokeLinecap="round">
-              <line x1="96" y1="46" x2="96" y2="43"/>
-              <line x1="96" y1="70" x2="96" y2="73"/>
-              <line x1="84" y1="58" x2="81" y2="58"/>
-              <line x1="108" y1="58" x2="111" y2="58"/>
-              <line x1="87.5" y1="49.5" x2="85.4" y2="47.4"/>
-              <line x1="104.5" y1="66.5" x2="106.6" y2="68.6"/>
-              <line x1="104.5" y1="49.5" x2="106.6" y2="47.4"/>
-              <line x1="87.5" y1="66.5" x2="85.4" y2="68.6"/>
-            </g>
-          </svg>
+          <ImagePlus size={116} strokeWidth={1.1} aria-hidden="true" className="drop-shadow-[0_6px_18px_rgba(37,99,235,0.18)] text-[rgba(37,99,235,0.68)]" />
         </div>
       )}
 

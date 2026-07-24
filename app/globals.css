@@ -3985,7 +3985,7 @@ button.workspace-file-tree-toggle:hover { color: var(--text); }
 .git-review-toolbar span,
 .git-review-diff-header span { min-width: 0; overflow: hidden; color: var(--text-dim); font: 11px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
 .git-review-status-summary { display: flex; min-width: 0; flex: 1 0 100%; align-items: center; gap: 4px; overflow-x: auto; padding-top: 2px; }
-.git-review-status-summary span { flex: 0 0 auto; padding: 2px 5px; border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim); background: var(--bg); font: 10px var(--font-mono); }
+.git-review-status-summary span { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 2px; padding: 2px 5px; border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim); background: var(--bg); font: 10px var(--font-mono); white-space: nowrap; }
 .git-review-status-summary span:first-child { color: var(--text-muted); }
 .git-review-selectors,
 .git-review-remote-actions { display: flex; min-width: 0; align-items: center; gap: 3px; }
@@ -4141,3 +4141,19 @@ button.workspace-file-tree-toggle:hover { color: var(--text); }
 }
 
 .git-review-remote-actions { margin-left: auto; }
+
+
+
+
+@media (prefers-reduced-motion: no-preference) {
+  .chat-empty-title > span { animation: pi-breathe 4.8s ease-in-out infinite; }
+  .workspace-toolbar { animation: toolbar-in 520ms ease-out both; }
+}
+@keyframes pi-breathe { 50% { color: #ff694a; transform: translateY(-5px) rotate(-4deg); } }
+@keyframes toolbar-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 640px) {
+  .chat-empty-heading { grid-template-columns: 1fr; }
+  .chat-version-list { justify-content: flex-start; }
+  .glass-sidebar { width: min(86vw, 320px); }
+}

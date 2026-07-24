@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, AtSign, Check, Columns2, Download, ExternalLink, FolderOpen, GitBranch, Link2, List, Minus, Plus, RefreshCw, Undo2, Upload, X, type LucideIcon } from "lucide-react";
 import { InlineDiff, SplitDiff } from "../InlineDiff";
 import { getFileIcon } from "../FileIcons";
 import { getRelativeFilePath, joinFilePath } from "@/lib/file-paths";
@@ -9,12 +10,7 @@ import { buildCommitGraph, type GraphRow } from "@/lib/git-graph";
 import type { RightPanelToolDefinition, RightPanelToolProps } from "./types";
 
 function ReviewIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="6" cy="5" r="2" /><circle cx="18" cy="7" r="2" /><circle cx="6" cy="19" r="2" />
-      <path d="M8 5h3a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8m8-10h-2" />
-    </svg>
-  );
+  return <GitBranch size={size} strokeWidth={1.9} aria-hidden="true" />;
 }
 
 type ListResponse = {
@@ -52,17 +48,17 @@ function CommitGraph({ row }: { row: GraphRow }) {
   </svg>;
 }
 
-function ActionButton({ label, title, onClick, disabled = false, danger = false }: { label: string; title: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
-  return <button type="button" className={`git-review-icon-action${danger ? " is-danger" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={title}>{label}</button>;
+function ActionButton({ icon: Icon, title, onClick, disabled = false, danger = false }: { icon: LucideIcon; title: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
+  return <button type="button" className={`git-review-icon-action${danger ? " is-danger" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={title}><Icon size={14} strokeWidth={1.8} aria-hidden="true" /></button>;
 }
 
 function DiffModeButtons({ mode, onChange }: { mode: DiffMode; onChange: (mode: DiffMode) => void }) {
   return <span className="git-review-diff-mode" role="group" aria-label="Diff format">
     <button type="button" className={`git-review-icon-action${mode === "inline" ? " is-active" : ""}`} onClick={() => onChange("inline")} title="Unified diff" aria-label="Unified diff" aria-pressed={mode === "inline"}>
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M5 3h8M5 8h8M5 13h8M2 3h.01M2 8h.01M2 13h.01" /></svg>
+      <List size={14} strokeWidth={1.4} aria-hidden="true" />
     </button>
     <button type="button" className={`git-review-icon-action${mode === "split" ? " is-active" : ""}`} onClick={() => onChange("split")} title="A/B diff" aria-label="A/B diff" aria-pressed={mode === "split"}>
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><rect x="1.5" y="2" width="13" height="12" rx="1" /><path d="M8 2v12M3.5 5h2M10.5 5h2M3.5 8h2M10.5 8h2" /></svg>
+      <Columns2 size={14} strokeWidth={1.4} aria-hidden="true" />
     </button>
   </span>;
 }
@@ -93,8 +89,8 @@ function ChangeSection({
         <span>{title}</span>
         <span>{files.length}</span>
         {(totals.added > 0 || totals.deleted > 0) && <span className="git-review-section-stat"><b>+{totals.added}</b><i>-{totals.deleted}</i></span>}
-        {canAct && <ActionButton label={staged ? "−" : "+"} title={staged ? "Unstage all files" : "Stage all files"} onClick={() => onAction?.(staged ? "unstage-all" : "stage-all")} disabled={busy} />}
-        {canAct && !staged && <ActionButton label="↶" title="Discard all unstaged changes" onClick={() => onAction?.("discard-all")} disabled={busy} danger />}
+        {canAct && <ActionButton icon={staged ? Minus : Plus} title={staged ? "Unstage all files" : "Stage all files"} onClick={() => onAction?.(staged ? "unstage-all" : "stage-all")} disabled={busy} />}
+        {canAct && !staged && <ActionButton icon={Undo2} title="Discard all unstaged changes" onClick={() => onAction?.("discard-all")} disabled={busy} danger />}
       </div>
       {files.map((file) => {
         const selected = selectedPath === file.path;
@@ -109,8 +105,8 @@ function ChangeSection({
               {(file.added > 0 || file.deleted > 0) && <span className="git-review-file-stat">{file.added > 0 && <b>+{file.added}</b>}{file.deleted > 0 && <i>-{file.deleted}</i>}</span>}
             </button>
             {canAct && <span className="git-review-file-actions">
-              <ActionButton label={staged ? "−" : "+"} title={staged ? `Unstage ${file.path}` : `Stage ${file.path}`} onClick={() => onAction?.(staged ? "unstage" : "stage", file)} disabled={busy} />
-              {!staged && <ActionButton label="↶" title={`Discard changes to ${file.path}`} onClick={() => onAction?.("discard", file)} disabled={busy} danger />}
+              <ActionButton icon={staged ? Minus : Plus} title={staged ? `Unstage ${file.path}` : `Stage ${file.path}`} onClick={() => onAction?.(staged ? "unstage" : "stage", file)} disabled={busy} />
+              {!staged && <ActionButton icon={Undo2} title={`Discard changes to ${file.path}`} onClick={() => onAction?.("discard", file)} disabled={busy} danger />}
             </span>}
           </div>
         );
@@ -377,8 +373,8 @@ function ReviewTool({ cwd, onAtMention, onOpenFile, onRevealInFileTree }: RightP
         </div>
         {!status.notGit && <div className="git-review-status-summary" aria-label="Git status">
           <span title="Current branch">{status.branch || "HEAD"}</span>
-          <span title="Commits ahead">↑ {status.ahead}</span>
-          <span title="Commits behind">↓ {status.behind}</span>
+          <span title="Commits ahead"><ArrowUp size={12} aria-hidden="true" /> {status.ahead}</span>
+          <span title="Commits behind"><ArrowDown size={12} aria-hidden="true" /> {status.behind}</span>
           <span title="Staged files">Staged {staged.length}</span>
           <span title="Unstaged files">Unstaged {modified}</span>
           <span title="Untracked files">Untracked {untracked}</span>
@@ -389,18 +385,18 @@ function ReviewTool({ cwd, onAtMention, onOpenFile, onRevealInFileTree }: RightP
           <button type="button" role="tab" aria-selected={mode === "history"} className={mode === "history" ? "is-active" : ""} onClick={() => setMode("history")}>History</button>
         </div>
         <div className="git-review-remote-actions">
-          <ActionButton label="↓" title={remoteUrl ? "Fetch" : "Configure remote first"} onClick={() => void runAction("fetch")} disabled={busy || !remoteUrl} />
-          <ActionButton label="⇣" title={remoteUrl ? "Pull fast-forward changes" : "Configure remote first"} onClick={() => void runAction("pull")} disabled={busy || !remoteUrl} />
-          <ActionButton label="⇡" title={remoteUrl ? "Push" : "Configure remote first"} onClick={() => void runAction("push")} disabled={busy || !remoteUrl} />
-          <ActionButton label="⌁" title={remoteUrl ? "Change origin remote" : "Configure origin remote"} onClick={() => { setRemoteInput(remoteUrl); setRemoteSetupOpen((open) => !open); }} disabled={busy || status.notGit} />
+          <ActionButton icon={Download} title={remoteUrl ? "Fetch" : "Configure remote first"} onClick={() => void runAction("fetch")} disabled={busy || !remoteUrl} />
+          <ActionButton icon={ArrowDown} title={remoteUrl ? "Pull fast-forward changes" : "Configure remote first"} onClick={() => void runAction("pull")} disabled={busy || !remoteUrl} />
+          <ActionButton icon={Upload} title={remoteUrl ? "Push" : "Configure remote first"} onClick={() => void runAction("push")} disabled={busy || !remoteUrl} />
+          <ActionButton icon={Link2} title={remoteUrl ? "Change origin remote" : "Configure origin remote"} onClick={() => { setRemoteInput(remoteUrl); setRemoteSetupOpen((open) => !open); }} disabled={busy || status.notGit} />
         </div>
-        <ActionButton label="↻" title="Refresh" onClick={() => mode === "changes" ? void loadChanges() : mode === "branch" ? void loadBranchChanges() : void loadHistory()} disabled={busy || (mode === "changes" ? status.loading : mode === "branch" ? branchDiffState.loading : history.loading || history.loadingMore)} />
+        <ActionButton icon={RefreshCw} title="Refresh" onClick={() => mode === "changes" ? void loadChanges() : mode === "branch" ? void loadBranchChanges() : void loadHistory()} disabled={busy || (mode === "changes" ? status.loading : mode === "branch" ? branchDiffState.loading : history.loading || history.loadingMore)} />
       </header>
 
       {remoteSetupOpen && <form className="git-review-inline-form" onSubmit={(event) => { event.preventDefault(); void runAction("set-remote", undefined, { remoteUrl: remoteInput }); }}>
         <input autoFocus value={remoteInput} onChange={(event) => setRemoteInput(event.currentTarget.value)} placeholder="Origin remote URL" aria-label="Origin remote URL" disabled={busy} />
-        <ActionButton label="✓" title="Save origin remote" onClick={() => void runAction("set-remote", undefined, { remoteUrl: remoteInput })} disabled={busy || !remoteInput.trim()} />
-        <ActionButton label="×" title="Cancel" onClick={() => setRemoteSetupOpen(false)} disabled={busy} />
+        <ActionButton icon={Check} title="Save origin remote" onClick={() => void runAction("set-remote", undefined, { remoteUrl: remoteInput })} disabled={busy || !remoteInput.trim()} />
+        <ActionButton icon={X} title="Cancel" onClick={() => setRemoteSetupOpen(false)} disabled={busy} />
       </form>}
       {discardConfirm && <div className="git-review-confirm" role="alertdialog" aria-modal="true" aria-label="Confirm discard">
         <strong>{discardConfirm.action === "discard-all" ? "Discard all unstaged changes?" : `Discard changes to ${discardConfirm.file?.path}?`}</strong>
@@ -417,7 +413,7 @@ function ReviewTool({ cwd, onAtMention, onOpenFile, onRevealInFileTree }: RightP
             {staged.length > 0 && <>
             <form className="git-review-commit-form" onSubmit={(event) => { event.preventDefault(); void runAction("commit"); }}>
               <input value={commitMessage} onChange={(event) => setCommitMessage(event.currentTarget.value)} placeholder="Commit message" aria-label="Commit message" disabled={busy} />
-              <ActionButton label="✓" title="Commit staged changes" onClick={() => void runAction("commit")} disabled={busy || !commitMessage.trim()} />
+              <ActionButton icon={Check} title="Commit staged changes" onClick={() => void runAction("commit")} disabled={busy || !commitMessage.trim()} />
             </form>
             <ChangeSection title="Staged" section="staged" files={staged} selectedPath={selection?.section === "staged" ? selection.file.path : undefined} onSelect={(file) => void selectFile(file, "staged")} onAction={(action, file) => void runAction(action, file)} busy={busy} />
             </>}
@@ -433,7 +429,7 @@ function ReviewTool({ cwd, onAtMention, onOpenFile, onRevealInFileTree }: RightP
         <main className="git-review-diff">
           {!selection && <div className="git-review-empty">Select a changed file to inspect its diff.</div>}
           {selection && <>
-            <header className="git-review-diff-header"><div><strong>{selection.file.path.split("/").pop()}</strong><span>{selection.file.path}</span></div><span className="git-review-diff-actions"><DiffModeButtons mode={diffMode} onChange={setDiffMode} /><ActionButton label="@" title="Insert file into chat" onClick={() => onAtMention(getRelativeFilePath(joinFilePath(repoCwd, selection.file.path), cwd), false)} /><ActionButton label="⊡" title="Reveal in file tree" onClick={() => onRevealInFileTree(joinFilePath(repoCwd, selection.file.path))} /><ActionButton label="↗" title="Open file" onClick={() => onOpenFile(joinFilePath(repoCwd, selection.file.path), selection.file.path.split("/").pop() ?? selection.file.path)} /></span></header>
+            <header className="git-review-diff-header"><div><strong>{selection.file.path.split("/").pop()}</strong><span>{selection.file.path}</span></div><span className="git-review-diff-actions"><DiffModeButtons mode={diffMode} onChange={setDiffMode} /><ActionButton icon={AtSign} title="Insert file into chat" onClick={() => onAtMention(getRelativeFilePath(joinFilePath(repoCwd, selection.file.path), cwd), false)} /><ActionButton icon={FolderOpen} title="Reveal in file tree" onClick={() => onRevealInFileTree(joinFilePath(repoCwd, selection.file.path))} /><ActionButton icon={ExternalLink} title="Open file" onClick={() => onOpenFile(joinFilePath(repoCwd, selection.file.path), selection.file.path.split("/").pop() ?? selection.file.path)} /></span></header>
             {diff.loading && <div className="git-review-empty">Loading diff...</div>}
             {diff.error && <div className="git-review-error">{diff.error}</div>}
             {!diff.loading && !diff.error && (diffMode === "inline" ? <InlineDiff oldContent={diff.oldContent} newContent={diff.newContent} /> : <SplitDiff oldContent={diff.oldContent} newContent={diff.newContent} />)}

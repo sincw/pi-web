@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, GitFork, Plus, Trash2 } from "lucide-react";
 import type { GitBranch } from "@/lib/git-branches";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -26,14 +27,7 @@ interface Props {
 }
 
 function WorktreeIcon({ size = 11 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="6" y1="3" x2="6" y2="15" />
-      <circle cx="18" cy="6" r="3" />
-      <circle cx="6" cy="18" r="3" />
-      <path d="M18 9a9 9 0 0 1-9 9" />
-    </svg>
-  );
+  return <GitFork size={size} aria-hidden="true" />;
 }
 
 export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) {
@@ -245,9 +239,7 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
       >
         <WorktreeIcon />
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentLabel}</span>
-        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
-          <polyline points="2 3.5 5 6.5 8 3.5" />
-        </svg>
+        <ChevronDown size={9} strokeWidth={1.8} aria-hidden="true" style={{ flexShrink: 0 }} />
       </button>
 
       {open && (
@@ -299,7 +291,7 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
                     }}
                   >
                     {isCurrent ? (
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
+                      <Check size={10} strokeWidth={2} aria-hidden="true" style={{ color: "var(--accent)", flexShrink: 0 }} />
                     ) : <span style={{ width: 10, flexShrink: 0 }} />}
                     <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-mono)" }}>{worktree.branch ?? worktree.path}</span>
                     {worktree.isMain && <span style={{ color: "var(--text-dim)", fontSize: 10 }}>main</span>}
@@ -315,7 +307,7 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
                       onMouseEnter={(event) => { if (!busy) { event.currentTarget.style.background = "rgba(239,68,68,0.08)"; event.currentTarget.style.color = "#ef4444"; } }}
                       onMouseLeave={(event) => { event.currentTarget.style.background = "none"; event.currentTarget.style.color = "var(--text-dim)"; }}
                     >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
+                      <Trash2 size={13} strokeWidth={2} aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -342,7 +334,7 @@ export function WorktreeSwitcher({ cwd, disabled = false, onCwdChange }: Props) 
               }}
               style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "9px 10px", border: "none", background: "var(--bg)", color: "var(--text-muted)", cursor: "pointer", fontSize: 12, textAlign: "left" }}
             >
-              <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden="true"><line x1="5" y1="1" x2="5" y2="9" /><line x1="1" y1="5" x2="9" y2="5" /></svg>
+              <Plus size={11} strokeWidth={1.2} aria-hidden="true" />
               New branch
             </button>
           ) : (

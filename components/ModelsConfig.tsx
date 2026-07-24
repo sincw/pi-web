@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Check as CheckIcon, Cpu, Eye, EyeOff, Plus, Search, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 // Color icons (have their own fill colors — no background needed)
 import AnthropicIcon from "@lobehub/icons/es/Anthropic/components/Mono";
@@ -238,19 +239,7 @@ function SecretTextInput({
           justifyContent: "center",
         }}
       >
-        {visible ? (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.89 1 12a18.45 18.45 0 0 1 5.06-6.94" />
-            <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-            <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
-            <path d="M1 1l22 22" />
-          </svg>
-        ) : (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12Z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        )}
+        {visible ? <EyeOff size={15} strokeWidth={2} aria-hidden="true" /> : <Eye size={15} strokeWidth={2} aria-hidden="true" />}
       </button>
     </div>
   );
@@ -624,9 +613,7 @@ function ModelDetail({
             }}
           >
             {testState.phase === "success" && (
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <CheckIcon size={11} strokeWidth={3} aria-hidden="true" />
             )}
             {testState.phase === "testing" ? "Testing…" : testState.phase === "success" ? "OK" : "Test"}
           </button>
@@ -1065,9 +1052,7 @@ function ApiKeyDetail({ provider, onRefresh }: { provider: ApiKeyProvider; onRef
             }}
           >
             {savedOk && (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <CheckIcon size={12} strokeWidth={3} aria-hidden="true" />
             )}
             {savedOk ? "Saved" : saving ? "Saving…" : "Save"}
           </button>
@@ -1186,9 +1171,7 @@ function AddProviderPicker({
       <div className="modal-surface" style={{ width: 820, maxWidth: "calc(100vw - 32px)", maxHeight: "min(72vh, calc(100vh - 32px))", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, display: "flex", flexDirection: "column", boxShadow: "0 8px 32px rgba(0,0,0,0.22)", overflow: "hidden" }}>
         {/* Search */}
         <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-dim)", flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <Search size={13} strokeWidth={2} aria-hidden="true" style={{ color: "var(--text-dim)", flexShrink: 0 }} />
           <input
             ref={inputRef}
             value={search}
@@ -1220,9 +1203,7 @@ function AddProviderPicker({
                     <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>Custom endpoint format</div>
                   </div>
                   <span style={{ width: 26, height: 26, borderRadius: 5, background: "var(--bg-hover)", border: "1px dashed var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-dim)" }}>
-                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
+                    <Plus size={13} strokeWidth={2} aria-hidden="true" style={{ color: "var(--text-dim)" }} />
                   </span>
                 </button>
               )}
@@ -1463,7 +1444,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
             <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Models</span>
             <code style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>~/.pi/agent/models.json</code>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "2px 6px" }}>×</button>
+          <button onClick={onClose} aria-label="Close models configuration" style={{ display: "grid", placeItems: "center", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "2px 6px" }}><X size={18} aria-hidden="true" /></button>
         </div>
 
         {/* Body */}
@@ -1532,13 +1513,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                       onMouseEnter={(e) => { if (!isProviderSelected) e.currentTarget.style.background = "var(--bg-hover)"; }}
                       onMouseLeave={(e) => { if (!isProviderSelected) e.currentTarget.style.background = "none"; }}
                     >
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-dim)", flexShrink: 0 }}>
-                        <rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" />
-                        <line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" />
-                        <line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" />
-                        <line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="14" x2="23" y2="14" />
-                        <line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="14" x2="4" y2="14" />
-                      </svg>
+                      <Cpu size={11} strokeWidth={2} aria-hidden="true" style={{ color: "var(--text-dim)", flexShrink: 0 }} />
                       <span style={{ fontSize: 12, fontWeight: isProviderSelected ? 600 : 400, color: "var(--text)", fontFamily: "var(--font-mono)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {pName}
                       </span>
@@ -1623,10 +1598,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
             animation: savedOk ? "saved-pop 0.45s ease" : undefined,
           }}>
             {savedOk && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-                style={{ strokeDasharray: 18, animation: "saved-check-draw 0.35s ease forwards", flexShrink: 0 }}>
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <CheckIcon size={14} strokeWidth={3} aria-hidden="true" style={{ animation: "saved-pop 0.35s ease forwards", flexShrink: 0 }} />
             )}
             <span>{savedOk ? "Saved" : saving ? "Saving…" : "Save"}</span>
           </button>
