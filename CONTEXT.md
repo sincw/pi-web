@@ -1,4 +1,4 @@
-# Pi Web
+# Pivot UI
 
 Local web UI for the pi coding agent: session browsing, live chat, model/skill configuration, and workspace tools.
 

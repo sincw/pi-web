@@ -61,7 +61,7 @@ interface GitImportBody {
 
 async function gitImport(body: GitImportBody) {
   const libraryRoot = getLibraryRoot();
-  const tmpDir = mkdtempSync(join(tmpdir(), "pi-web-git-import-"));
+  const tmpDir = mkdtempSync(join(tmpdir(), "pivot-ui-git-import-"));
   try {
     const { execFile } = await import("node:child_process");
     const { promisify } = await import("node:util");

@@ -224,9 +224,9 @@ Newer pi emits `compaction_start` / `compaction_end`; older versions emitted `au
 - `/api/skills/install` shells through `npx skills add ... --agent pi`; project installs run with the selected cwd.
 
 ### Skill packs
-- The global configuration is `~/.pi/agent/skill-packs.json`; its default `libraryRoot` is `~/.pi-web/lib/skills`. Library skills live under `<libraryRoot>/.pi/skills/<skillKey>`, while MCP metadata lives under `<libraryRoot>/.pi/mcp-servers/<serverKey>.mcp.json`. Workspace state is `<cwd>/.pi/skill-packs.json`; Pack-managed MCP entries live in `<cwd>/.pi/mcp.json`.
+- The global configuration is `~/.pi/agent/skill-packs.json`; its default `libraryRoot` is `~/.pivot-ui/lib/skills`. Library skills live under `<libraryRoot>/.pi/skills/<skillKey>`, while MCP metadata lives under `<libraryRoot>/.pi/mcp-servers/<serverKey>.mcp.json`. Workspace state is `<cwd>/.pi/skill-packs.json`; Pack-managed MCP entries live in `<cwd>/.pi/mcp.json`.
 - A Pack holds `{ skillKey, contentHash }` and `{ serverKey, configHash }` snapshots. `previewWorkspacePackChange()` computes the full Pack union, blocks missing/stale entries and same-key/different-hash conflicts, then `applyWorkspacePackChange()` atomically applies skills, MCP changes, and the receipt. Keep MCP reconciliation in `lib/mcp-pack-apply.ts`, combined transaction logic in `lib/skill-pack-apply.ts`, and state-only operations in `lib/workspace-packs.ts`.
-- MCP reconciliation never overwrites a team `.mcp.json`, unowned `.pi/mcp.json` entry, or a Pack-managed entry changed outside Pi-web. Unapply removes only entries no remaining Pack needs and that Pi-web still owns; skill removal retains the existing union-based behavior and can remove a pre-existing same-name skill that was skipped during apply.
+- MCP reconciliation never overwrites a team `.mcp.json`, unowned `.pi/mcp.json` entry, or a Pack-managed entry changed outside Pivot UI. Unapply removes only entries no remaining Pack needs and that Pivot UI still owns; skill removal retains the existing union-based behavior and can remove a pre-existing same-name skill that was skipped during apply.
 - Library MCP CRUD and Pack editing do not require the MCP adapter. Any workspace mutation with an MCP effect does; routes must enforce readiness, not only the UI.
 - Applying or removing a pack calls `SkillsConfig.onPacksChanged`, which increments `AppShell.packsRefreshKey`. `useAgentSession` owns the resulting reload: defer it while the agent runs, refresh `get_commands` after reload, and await the same Promise before the next prompt. Do not add competing reload effects in `ChatWindow`.
 - Tests: `lib/content-hash.test.mjs`, `lib/skill-library.test.mjs`, `lib/mcp-library.test.mjs`, `lib/skill-packs-store.test.mjs`, `lib/workspace-packs.test.mjs`, `lib/skill-pack-apply.test.mjs`, `lib/mcp-pack-apply.test.mjs`, and `components/ChatWindow.test.mjs`. See `docs/skill-packs.md` for the implementation-level behavior.
@@ -275,7 +275,7 @@ Location: `~/.pi/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 
 ### Issue tracker
 
-Issues are tracked as GitHub issues in `sincw/pi-web`; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked as GitHub issues in `sincw/pivot-ui`; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

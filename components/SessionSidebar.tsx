@@ -28,9 +28,9 @@ interface Props {
   onClose?: () => void;
 }
 
-const UNREAD_SESSIONS_STORAGE_KEY = "pi-web:unread-session-ids";
-const HIDDEN_WORKSPACES_STORAGE_KEY = "pi-web:hidden-workspaces";
-const CUSTOM_WORKSPACES_STORAGE_KEY = "pi-web:custom-workspaces";
+const UNREAD_SESSIONS_STORAGE_KEY = "pivot-ui:unread-session-ids";
+const HIDDEN_WORKSPACES_STORAGE_KEY = "pivot-ui:hidden-workspaces";
+const CUSTOM_WORKSPACES_STORAGE_KEY = "pivot-ui:custom-workspaces";
 
 function loadUnreadSessionIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -141,7 +141,7 @@ function projectLabel(cwd: string): string {
 
 /**
  * Path label that ellipsizes on the LEFT, keeping the (most relevant) trailing
- * segments visible: "…orkspace/pi-web". Shows as much of the path as fits
+ * segments visible: "…orkspace/pivot-ui". Shows as much of the path as fits
  * instead of a fixed number of segments. The rtl container moves the ellipsis
  * to the left edge; the inner plaintext bidi isolation keeps the path itself
  * rendered strictly left-to-right (no punctuation reordering).

@@ -51,7 +51,7 @@ export function getDefaultConfigPath(): string {
 
 /** Default skill library root when the user has not configured one. */
 export function getDefaultLibraryRoot(): string {
-  return join(homedir(), ".pi-web", "lib", "skills");
+  return join(homedir(), ".pivot-ui", "lib", "skills");
 }
 
 /**
