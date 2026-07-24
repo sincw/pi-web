@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { ChevronRight, ImagePlus } from "lucide-react";
+import { ChevronDown, ChevronRight, ImagePlus } from "lucide-react";
 import type { AgentMessage, AssistantContentBlock, AssistantMessage, ExtensionUiRequest, SessionInfo, SessionTreeNode, ToolResultMessage } from "@/lib/types";
 import { normalizeCustomPanelLines, parseAnsiLine } from "@/lib/ansi";
 import { countToolCallBlocks, getDisplayableAssistantBlocks, splitFinalAssistantBlocks } from "@/lib/message-display";
@@ -367,7 +367,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
         </div>
       ) : (
       <>
-      <div className="chat-scroll-region relative flex flex-1 overflow-hidden">
+      <div className="chat-scroll-region relative flex flex-1 flex-col overflow-hidden">
         <div
           style={{
             position: "absolute",
@@ -383,10 +383,16 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
             <NoticeShelf notices={notices} floating align="right" />
           </div>
         </div>
+        {extensionStatuses.length > 0 && (
+          <div className="shrink-0" style={{ padding: `16px ${CHAT_COLUMN_PADDING}px 0` }}>
+            <div style={{ maxWidth: 820, margin: "0 auto" }}>
+              <ExtensionStatusBar statuses={extensionStatuses} isMobile={isMobile} />
+            </div>
+          </div>
+        )}
         <div ref={scrollContainerRef} className="chat-message-scroll flex-1 overflow-y-auto pt-4 [scrollbar-width:none]">
           <div style={{ padding: `0 ${CHAT_COLUMN_PADDING}px` }}>
             <div style={{ maxWidth: 820, margin: "0 auto" }}>
-              <ExtensionStatusBar statuses={extensionStatuses} />
               <ExtensionWidgets widgets={aboveEditorWidgets} />
 
             {(() => {
@@ -601,31 +607,48 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
   );
 }
 
-function ExtensionStatusBar({ statuses }: { statuses: Array<{ key: string; text: string }> }) {
+function ExtensionStatusBar({ statuses, isMobile }: { statuses: Array<{ key: string; text: string }>; isMobile: boolean }) {
+  const [expanded, setExpanded] = useState(false);
   if (statuses.length === 0) return null;
+  const tags = statuses.map((status) => (
+    <span
+      key={status.key}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        maxWidth: "100%",
+        padding: "4px 8px",
+        border: "1px solid color-mix(in srgb, var(--accent) 24%, var(--border))",
+        borderRadius: 6,
+        background: "color-mix(in srgb, var(--accent) 7%, var(--bg))",
+        color: "var(--text-muted)",
+        fontSize: 12,
+        flexShrink: 0,
+      }}
+    >
+      <span style={{ color: "var(--accent)", fontFamily: "var(--font-mono)", fontSize: 11 }}>{status.key}</span>
+      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{status.text}</span>
+    </span>
+  ));
+
+  if (!isMobile) {
+    return <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>{tags}</div>;
+  }
+
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-      {statuses.map((status) => (
-        <div
-          key={status.key}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            maxWidth: "100%",
-            padding: "4px 8px",
-            border: "1px solid color-mix(in srgb, var(--accent) 24%, var(--border))",
-            borderRadius: 6,
-            background: "color-mix(in srgb, var(--accent) 7%, var(--bg))",
-            color: "var(--text-muted)",
-            fontSize: 12,
-          }}
-        >
-          <span style={{ color: "var(--accent)", fontFamily: "var(--font-mono)", fontSize: 11 }}>{status.key}</span>
-          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{status.text}</span>
-        </div>
-      ))}
-    </div>
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-label={expanded ? "Collapse extension statuses" : "Expand extension statuses"}
+      onClick={() => setExpanded((value) => !value)}
+      style={{ display: "flex", alignItems: "flex-start", gap: 6, width: "100%", marginBottom: 10, padding: 0, border: "none", background: "none", cursor: "pointer" }}
+    >
+      <span style={{ display: "flex", flex: 1, minWidth: 0, flexWrap: expanded ? "wrap" : "nowrap", gap: 6, overflow: "hidden" }}>
+        {tags}
+      </span>
+      <ChevronDown size={14} strokeWidth={1.6} aria-hidden="true" style={{ flexShrink: 0, marginTop: 5, color: "var(--text-dim)", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+    </button>
   );
 }
 
