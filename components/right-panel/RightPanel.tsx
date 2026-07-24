@@ -55,7 +55,7 @@ function ToolLauncher({ disabled, onOpenTool }: { disabled: boolean; onOpenTool:
   return (
     <div className="right-panel-launcher">
       <div className="right-panel-launcher-heading">
-        <h2>开始使用 Pi Agent Web</h2>
+        <h2>开始使用 Pivot UI </h2>
         <p>选择一个工具开始你的智能开发之旅</p>
       </div>
       <div className="right-panel-launcher-list">

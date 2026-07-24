@@ -891,7 +891,7 @@ export function AppShell() {
               </div>
             ) : (
               <div className="workspace-placeholder workspace-placeholder-intro">
-                <span>Pi Agent Web</span>
+                <span>Pivot UI </span>
               </div>
             )
           ) : null}

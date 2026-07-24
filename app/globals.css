@@ -1299,6 +1299,7 @@ html.dark .terminal-tool-xterm .xterm-viewport {
 }
 
 .sidebar-brand-row,
+.sidebar-brand-identity,
 .sidebar-brand-actions,
 .sidebar-session-heading,
 .sidebar-settings-action {
@@ -1314,6 +1315,18 @@ html.dark .terminal-tool-xterm .xterm-viewport {
 
 .sidebar-brand-actions {
   gap: 4px;
+}
+
+.sidebar-brand-identity {
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar-brand-icon {
+  display: block;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
 }
 
 .sidebar-brand-title {
@@ -3106,6 +3119,11 @@ html.dark .user-message-bubble {
   .sidebar-container .sidebar-brand-title {
     font-size: 22px !important;
   }
+  .sidebar-container .sidebar-brand-icon {
+    flex-basis: 34px;
+    width: 34px;
+    height: 34px;
+  }
   .sidebar-container .sidebar-header-icon {
     display: none;
   }
@@ -3391,16 +3409,16 @@ html.dark .user-message-bubble {
 
 .chat-empty-title {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
   color: var(--text);
 }
 
-.chat-empty-title > span {
-  font-family: var(--font-mono);
-  font-size: 38px;
-  font-weight: 700;
-  line-height: 1;
+.chat-empty-brand-icon {
+  display: block;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
 }
 
 .chat-empty-title h1 {
@@ -3740,6 +3758,12 @@ html.eye .right-panel-launcher-item:not(:disabled):hover {
 
   .chat-empty-title h1 {
     font-size: 28px;
+  }
+
+  .chat-empty-brand-icon {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
   }
 }
 
@@ -4230,15 +4254,3 @@ button.workspace-file-tree-toggle:hover { color: var(--text); }
 
 
 
-@media (prefers-reduced-motion: no-preference) {
-  .chat-empty-title > span { animation: pi-breathe 4.8s ease-in-out infinite; }
-  .workspace-toolbar { animation: toolbar-in 520ms ease-out both; }
-}
-@keyframes pi-breathe { 50% { color: #ff694a; transform: translateY(-5px) rotate(-4deg); } }
-@keyframes toolbar-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-
-@media (max-width: 640px) {
-  .chat-empty-heading { grid-template-columns: 1fr; }
-  .chat-version-list { justify-content: flex-start; }
-  .glass-sidebar { width: min(86vw, 320px); }
-}

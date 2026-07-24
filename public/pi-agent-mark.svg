@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 590 824" fill="none">
+  <defs>
+    <!-- 1. 主体渐变：对角线光影 -->
+    <linearGradient id="main-grad" x1="10%" y1="5%" x2="90%" y2="95%">
+      <stop offset="0%" stop-color="#D4C8FF"/>
+      <stop offset="25%" stop-color="#9C95FF"/>
+      <stop offset="65%" stop-color="#4F4DF9"/>
+      <stop offset="100%" stop-color="#2423C4"/>
+    </linearGradient>
+
+    <!-- 2. 发光核心渐变：已替换为方案一（新幻玻璃）的白-紫-蓝发光色系 -->
+    <linearGradient id="core-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="35%" stop-color="#B09DFF"/>
+      <stop offset="100%" stop-color="#3736F9"/>
+    </linearGradient>
+
+    <!-- 3. 高光边缘渐变：模拟玻璃边缘高光 -->
+    <linearGradient id="rim-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="20%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="80%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <!-- 4. 双层弥散阴影 -->
+    <filter id="smooth-shadow" x="-30%" y="-20%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#3736F9" flood-opacity="0.25"/>
+      <feDropShadow dx="0" dy="28" stdDeviation="36" flood-color="#1A19A3" flood-opacity="0.15"/>
+    </filter>
+
+    <!-- 5. 核心辉光特效 -->
+    <filter id="core-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ================= 主体气泡 ================= -->
+  <g filter="url(#smooth-shadow)">
+    <!-- 基础形状 -->
+    <path fill="url(#main-grad)" fill-rule="evenodd" d="M0 294C0 132 132 0 295 0s295 132 295 294-132 294-295 294H140v205c0 11-12 17-21 11L20 746c-13-9-20-23-20-39V294Zm295-146c-82 0-148 65-148 146s66 146 148 146 148-65 148-146-66-146-148-146Z"/>
+    
+    <!-- 玻璃高光包边 (Rim Light) -->
+    <path stroke="url(#rim-grad)" stroke-width="2.5" fill="none" d="M0 294C0 132 132 0 295 0s295 132 295 294-132 294-295 294H140v205c0 11-12 17-21 11L20 746c-13-9-20-23-20-39V294Zm295-146c-82 0-148 65-148 146s66 146 148 146 148-65 148-146-66-146-148-146Z"/>
+  </g>
+
+  <!-- ================= 核心与科技感装饰 ================= -->
+  <!-- 轨道虚线环 -->
+  <circle cx="295" cy="294" r="105" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="1.5" stroke-dasharray="6 8"/>
+  <!-- 轨道实线外环 -->
+  <circle cx="295" cy="294" r="125" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="1"/>
+
+  <!-- 新配色方案的发光核心 -->
+  <circle cx="295" cy="294" r="62" fill="url(#core-grad)" filter="url(#core-glow)" opacity="0.95"/>
+
+  <!-- 漂浮的小四角星/闪光点 -->
+  <path fill="#FFFFFF" fill-opacity="0.85" d="M440 140 Q450 140 450 130 Q450 140 460 140 Q450 140 450 150 Q450 140 440 140 Z"/>
+  <path fill="#FFFFFF" fill-opacity="0.5" d="M140 440 Q146 440 146 434 Q146 440 152 440 Q146 440 146 446 Q146 440 140 440 Z"/>
+</svg>

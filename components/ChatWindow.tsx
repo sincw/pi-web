@@ -353,8 +353,8 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
             <div className="chat-empty-heading">
               <p>Hello, Developer</p>
               <div className="chat-empty-title">
-                <span>π</span>
-                <h1>Pi Agent Web</h1>
+                <img className="chat-empty-brand-icon" src="/pi-agent-mark.svg" width={52} height={52} alt="" />
+                <h1>Pivot UI </h1>
               </div>
               <div className="chat-version-list">
                 <span>web v{process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}</span>

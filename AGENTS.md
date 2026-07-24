@@ -1,4 +1,4 @@
-# Pi Agent Web - Development Notes
+# Pivot UI  - Development Notes
 
 ## Quick Start
 
